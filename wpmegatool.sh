@@ -1,60 +1,82 @@
 #!/bin/bash
+ 
+# Set the timezone to IST
+export TZ="Asia/Kolkata"
+ 
+# Clear the screen
+clear
 
-# Check if user is in the correct directory
-if [ ! -f wp-config.php ]; then
-    echo "Error: You are not in the correct directory."
-    exit 1
+echo '																			   '
+echo '	███╗   ███╗███████╗ ██████╗  █████╗     ████████╗ ██████╗  ██████╗ ██╗     '
+echo '	████╗ ████║██╔════╝██╔════╝ ██╔══██╗    ╚══██╔══╝██╔═══██╗██╔═══██╗██║     '
+echo '	██╔████╔██║█████╗  ██║  ███╗███████║       ██║   ██║   ██║██║   ██║██║     '
+echo '	██║╚██╔╝██║██╔══╝  ██║   ██║██╔══██║       ██║   ██║   ██║██║   ██║██║     '
+echo '	██║ ╚═╝ ██║███████╗╚██████╔╝██║  ██║       ██║   ╚██████╔╝╚██████╔╝███████╗'
+echo '	╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝       ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝'
+
+
+# Display current date and time (IST)
+echo "$(date '+%A, %d %B %Y %I:%M:%S %p %Z')" | awk '{ printf("%60s", $0) }'
+ 
+# Display system information with ASCII art
+echo ""
+echo "  ╔══════════════════════════════════════════════════════════════════════╗"
+echo "  ║                  System Information :CentOS Version                  ║"
+echo "  ╚══════════════════════════════════════════════════════════════════════╝"
+echo ""
+
+echo "PHP Version:             $(php -v | awk '/^PHP/ {print $2}' | head -n 1 || echo "Not available")"
+echo "Python Version:          $(python -V 2>&1 | awk '{print $2}' || echo "Not available")"
+echo "MySQL Version:           $(mysql -V | awk '{print $5}' | sed 's/,//')"
+echo "cPanel Version:          $(cat /usr/local/cpanel/version || echo "Not available")"
+echo "cPanel Build Number:     $(/usr/local/cpanel/cpanel -V | awk '/build/ {print $NF}' || echo "Not available")"
+compiler_group=$(groups $(id -un) | grep -q '\bcompiler\b' && echo "YES" || echo "NO")
+echo "Compiler Group:          $compiler_group"
+
+
+echo "TLS Version:             $(openssl ciphers -v | awk '{print $2}' | sort | uniq | tail -1 || echo "Not available")"
+echo "Apache Version:          $([[ -f /etc/cpanel/ea4/is_ea4 ]] && echo "EA4" || echo "EA3")"
+last_boot=$(last | grep boot | head -1 | awk '{print $5,$6,$7,$8,$9}')
+if [ -n "$last_boot" ]; then
+    echo "Last Boot Time:          $last_boot"
 fi
+echo "Home Directory Size:     $(du -hs ~ 2>/dev/null | awk '{print $1}' | sed 's/G$/GB/' | sed 's/M$/MB/' || echo "Not available")"
+echo "Home Directory Path:     $(echo ~)"
+ 
+ 
+echo '       ________________________________________________________'
+echo '      /                                                        \'
+echo '     |   For more information, please contact Sushan           |'
+echo '     |                  Author: Sushan                         |'
+echo '     |              Role: Tech Tier3 Support Engineer          |'
+echo '     |                 Email: sushan@sush.com                  |'
+echo '      \           ღ(¯`◕‿◕´¯)    c(◕ヮ◕n )     ¯´◕‿◕`¯(ღ         /'
+echo '       --------------------------------------------------------'
+echo '             \                                        /'
+echo '              \       ______             _           /'
+echo '               \     / _____)           | |         /'
+echo '                \   ( (____   _   _  ___| |__      /'
+echo '                 \   \_____ \| | | |/___|  _ \    /'
+echo '                  \   _____) | |_| |___ | | | |  /'
+echo '                   \ (______/|____/(___/|_| |_| /'
+echo '                    \                          /'
+echo '                    ----------------------------'
+echo '                           \          .  '
+echo '                            \        /   .'
+echo '                             \      /   /'
+echo '                              \    /   /'
+echo '                               \  /   /'
+echo '                                \/___/'
+echo "" 
 
-# Welcome message
-echo "Welcome to WordPress Mega Tool"
-echo "Domain name: $(wp option get home | cut -d '/' -f3)"
-
-# Get database information from wp-config.php
-DB_NAME=$(grep -o "define( *'DB_NAME', *'[^']*')" wp-config.php | cut -d"'" -f4)
-DB_USER=$(grep -o "define( *'DB_USER', *'[^']*')" wp-config.php | cut -d"'" -f4)
-DB_PASS=$(grep -o "define( *'DB_PASSWORD', *'[^']*')" wp-config.php | cut -d"'" -f4)
-
-# List of options
-OPTIONS=("Create staging site" "Migrate WordPress site" "Reset WordPress user Password" "Import .xml file into database" "Database tool")
-
-# Prompt user to choose an option
-echo "Please choose an option:"
-select OPTION in "${OPTIONS[@]}"; do
-    case $OPTION in
-        "Create staging site")
-            # Create staging site
-            if [ -d "staging" ]; then
-                read -p "A staging directory already exists. Please enter a different name: " STAGING_NAME
-                mkdir "staging/$STAGING_NAME"
-                STAGING_DIR="staging/$STAGING_NAME/$(date +%s | shasum | base64 | head -c 4)"
-            else
-                mkdir "staging"
-                STAGING_DIR="staging/$(date +%s | shasum | base64 | head -c 4)"
-            fi
-            cp -r !("staging") "$STAGING_DIR"
-            echo "Created staging site at $STAGING_DIR"
-            read -p "Do you want to proceed with the database? " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                # Create database and user
-                read -p "Enter database name: " DB_NAME_NEW
-                uapi Mysql create_database name="$DB_NAME_NEW"
-                echo "Database created: $DB_NAME_NEW"
-                read -p "Enter database username: " DB_USER_NEW
-                read -s -p "Enter database password: " DB_PASS_NEW
-                echo
-                uapi Mysql create_user name="$DB_USER_NEW" password="$DB_PASS_NEW"
-                echo "Database user created: $DB_USER_NEW"
-                uapi Mysql set_privileges_on_database database="$DB_NAME_NEW" user="$DB_USER_NEW" privileges="ALL PRIVILEGES"
-                echo "Privileges set for $DB_USER_NEW on $DB_NAME_NEW"
-                
-                # Update wp-config.php with new database information
-                sed -i "s/define('DB_NAME', '$DB_NAME')/define('DB_NAME', '$DB_NAME_NEW')/g" "$STAGING_DIR/wp-config.php"
-                sed -i "s/define('DB_USER', '$DB_USER')/define('DB_USER', '$DB_USER_NEW')/g" "$STAGING_DIR/wp-config.php"
-                sed -i "s/define('DB_PASSWORD', '$DB_PASS')/define('DB_PASSWORD', '$DB_PASS_NEW')/g" "$STAGING_DIR/wp-config.php"
-                echo "Updated wp-config.php with new database information"
-            fi
-            break;;
-        "Migrate WordPress site")
-            echo "Migrate WordPress site
+# Prompt user for confirmation
+read -p "Would you like to proceed to the bash script? (y/n): " choice
+if [[ $choice == "y" || $choice == "Y" ]]; then
+  # Execute home.sh
+  ./home.sh
+else
+  # Generate a random message
+  messages=("Goodbye!" "Have a nice day!" "Take care!" "See you later!" "Have a good one!" "Adios!" "Catch you later!" "Until next time!")
+  rand=$[$RANDOM % ${#messages[@]}]
+  echo ${messages[$rand]}
+fi
