@@ -1,108 +1,68 @@
 #!/bin/bash
-# AI-Powered WordPress Management Script
-# Features: Security Fixes, Optimization, Backup & Restore, WP-CLI Automation
 
-# Define WordPress Directory Root (Modify as needed)
-WP_ROOT="/home/$USER/public_html"
-LOG_FILE="/var/log/wp_manager.log"
-BACKUP_DIR="/home/$USER/wp_backups"
+# Email Header Analyzer Script
+# Dependencies: curl, jq, whois, dig
 
-# Ensure WP-CLI is installed
-if ! command -v wp &> /dev/null; then
-    echo "WP-CLI not found. Installing..."
-    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-    chmod +x wp-cli.phar
-    mv wp-cli.phar /usr/local/bin/wp
-fi
+analyze_header() {
+    local header="$1"
 
-# Function: Scan for WordPress installations
-detect_wp_sites() {
-    find "$WP_ROOT" -name "wp-config.php" | while read -r config;
-    do
-        echo "Found WordPress site: $(dirname "$config")"
-    done
+    echo -e "\n=== Extracted Header Information ===\n"
+
+    # Extract sender IP
+    sender_ip=$(echo "$header" | grep -oP '(?<=Received: from ).*?\[.*?\]' | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1)
+    echo "Sender IP: $sender_ip"
+
+    # Extract SPF Authentication
+    spf_result=$(echo "$header" | grep -i "spf=" | head -1)
+    echo "SPF Authentication: $spf_result"
+
+    # Extract DKIM Authentication
+    dkim_result=$(echo "$header" | grep -i "dkim=" | head -1)
+    echo "DKIM Authentication: $dkim_result"
+
+    # Extract DMARC Authentication
+    dmarc_result=$(echo "$header" | grep -i "dmarc=" | head -1)
+    echo "DMARC Authentication: $dmarc_result"
+
+    echo -e "\n=== IP and Domain Analysis ===\n"
+
+    # WHOIS Lookup
+    if [[ -n "$sender_ip" ]]; then
+        echo "WHOIS Lookup for $sender_ip:"
+        whois "$sender_ip" | grep -E 'OrgName|Country|NetRange|CIDR|OrgAbuseEmail' | sed 's/^/  /'
+    fi
+
+    # IP Geolocation (Using ipinfo.io)
+    if [[ -n "$sender_ip" ]]; then
+        echo -e "\nGeolocation for $sender_ip:"
+        curl -s "https://ipinfo.io/$sender_ip/json" | jq '.city, .region, .country, .org' | sed 's/^/  /'
+    fi
+
+    # Domain Lookup
+    domain=$(echo "$header" | grep -oP '(?<=From: ).*?<' | grep -oP '(?<=@)[^>]+')
+    if [[ -n "$domain" ]]; then
+        echo -e "\nDNS Lookup for $domain:"
+        dig +short "$domain"
+    fi
+
+    echo -e "\n=== Spoofing and Security Analysis ===\n"
+
+    if [[ "$spf_result" =~ "fail" ]]; then
+        echo "Warning: SPF Failed - Possible Spoofing Detected!"
+    fi
+
+    if [[ "$dkim_result" =~ "fail" ]]; then
+        echo "Warning: DKIM Failed - Email Integrity Not Verified!"
+    fi
+
+    if [[ "$dmarc_result" =~ "fail" ]]; then
+        echo "Warning: DMARC Failed - Possible Phishing or Spoofing Attempt!"
+    fi
 }
 
-# Function: Backup WordPress sites
-backup_wp() {
-    mkdir -p "$BACKUP_DIR"
-    detect_wp_sites | while read -r site;
-    do
-        site_name=$(basename "$site")
-        tar -czf "$BACKUP_DIR/${site_name}_backup.tar.gz" "$site"
-        wp db export "$BACKUP_DIR/${site_name}_db.sql" --path="$site"
-        echo "Backup completed for $site"
-    done
-}
+# User input for email header
+echo "Paste the full email header (Press Ctrl+D when done):"
+email_header=$(cat)
 
-# Function: Update WordPress, Plugins, and Themes
-update_wp() {
-    detect_wp_sites | while read -r site;
-    do
-        echo "Updating WordPress at $site..."
-        wp core update --path="$site"
-        wp plugin update --all --path="$site"
-        wp theme update --all --path="$site"
-        echo "Update completed for $site"
-    done
-}
-
-# Function: Optimize Database
-optimize_db() {
-    detect_wp_sites | while read -r site;
-    do
-        echo "Optimizing database for $site..."
-        wp db optimize --path="$site"
-    done
-}
-
-# Function: Fix File Permissions
-fix_permissions() {
-    detect_wp_sites | while read -r site;
-    do
-        echo "Fixing file permissions for $site..."
-        find "$site" -type d -exec chmod 755 {} \;
-        find "$site" -type f -exec chmod 644 {} \;
-    done
-}
-
-# Function: Check Site Health
-check_site_health() {
-    detect_wp_sites | while read -r site;
-    do
-        echo "Checking site health for $site..."
-        wp doctor check --path="$site"
-    done
-}
-
-# Function: Display Usage Instructions
-usage() {
-    echo "Usage: $0 {backup|update|optimize|fix|health}"
-    exit 1
-}
-
-# Main Execution
-if [ $# -eq 0 ]; then
-    usage
-fi
-
-case "$1" in
-    backup)
-        backup_wp
-        ;;
-    update)
-        update_wp
-        ;;
-    optimize)
-        optimize_db
-        ;;
-    fix)
-        fix_permissions
-        ;;
-    health)
-        check_site_health
-        ;;
-    *)
-        usage
-        ;;
-esac
+# Run analysis
+analyze_header "$email_header"
