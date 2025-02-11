@@ -1,131 +1,108 @@
 #!/bin/bash
+# AI-Powered WordPress Management Script
+# Features: Security Fixes, Optimization, Backup & Restore, WP-CLI Automation
 
-# WordPress Advanced Management Tool for cPanel
-# Version: 2.0 | Author: Your Name | High-Level Automation
+# Define WordPress Directory Root (Modify as needed)
+WP_ROOT="/home/$USER/public_html"
+LOG_FILE="/var/log/wp_manager.log"
+BACKUP_DIR="/home/$USER/wp_backups"
 
-# Required Dependencies: WP-CLI, MySQL, tar, rsync, netstat, iptables, curl
+# Ensure WP-CLI is installed
+if ! command -v wp &> /dev/null; then
+    echo "WP-CLI not found. Installing..."
+    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    chmod +x wp-cli.phar
+    mv wp-cli.phar /usr/local/bin/wp
+fi
 
-WP_CLI="/usr/local/bin/wp"
-BACKUP_DIR="/root/wp_backups"
-LOG_FILE="/var/log/wp-manager-advanced.log"
-EMAIL_ALERT="youradmin@example.com"
-TELEGRAM_CHAT_ID="123456789"
-TELEGRAM_BOT_TOKEN="your_bot_token"
-
-# Detect all WordPress installations
-function detect_wp_sites() {
-    echo -e "\n🔍 Detecting WordPress installations..."
-    find /home/*/public_html -name "wp-config.php" -print 2>/dev/null | sed 's|/wp-config.php||' > /tmp/wp_sites.list
+# Function: Scan for WordPress installations
+detect_wp_sites() {
+    find "$WP_ROOT" -name "wp-config.php" | while read -r config;
+    do
+        echo "Found WordPress site: $(dirname "$config")"
+    done
 }
 
-# Incremental Backup using rsync + MySQL dump
-function backup_all_sites() {
-    detect_wp_sites
-    echo -e "\n📦 Creating backups..."
+# Function: Backup WordPress sites
+backup_wp() {
     mkdir -p "$BACKUP_DIR"
-    while read -r site; do
-        domain=$(basename "$site")
-        timestamp=$(date +"%Y%m%d_%H%M%S")
-        backup_name="${domain}_backup_${timestamp}.tar.gz"
-        db_name=$($WP_CLI --path="$site" config get DB_NAME)
-        db_user=$($WP_CLI --path="$site" config get DB_USER)
-        db_pass=$($WP_CLI --path="$site" config get DB_PASSWORD)
-
-        mysqldump -u "$db_user" -p"$db_pass" "$db_name" > "$BACKUP_DIR/${domain}_db.sql"
-        rsync -a --delete "$site/" "$BACKUP_DIR/${domain}_files/"
-        tar -czf "$BACKUP_DIR/$backup_name" "$BACKUP_DIR/${domain}_files" "$BACKUP_DIR/${domain}_db.sql"
-        rm -rf "$BACKUP_DIR/${domain}_files" "$BACKUP_DIR/${domain}_db.sql"
-        echo "✅ Backup completed: $backup_name" | tee -a "$LOG_FILE"
-    done < /tmp/wp_sites.list
+    detect_wp_sites | while read -r site;
+    do
+        site_name=$(basename "$site")
+        tar -czf "$BACKUP_DIR/${site_name}_backup.tar.gz" "$site"
+        wp db export "$BACKUP_DIR/${site_name}_db.sql" --path="$site"
+        echo "Backup completed for $site"
+    done
 }
 
-# Advanced Security Hardening
-function apply_security() {
-    detect_wp_sites
-    echo -e "\n🔒 Applying Security Hardening..."
-    while read -r site; do
-        $WP_CLI --path="$site" config set DISALLOW_FILE_EDIT true
-        $WP_CLI --path="$site" config set WP_DEBUG false
-        $WP_CLI --path="$site" plugin install wordfence --activate
-        $WP_CLI --path="$site" rewrite flush
-        echo "✅ Security applied to: $site"
-    done < /tmp/wp_sites.list
-
-    # Apply Firewall Rules
-    echo -e "\n🛡 Configuring Firewall..."
-    iptables -A INPUT -p tcp --dport 22 -j DROP
-    iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-    iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-    service iptables save
-    echo "✅ Firewall configured"
-
-    # Enable Fail2Ban
-    echo -e "\n🚧 Enabling Fail2Ban..."
-    systemctl start fail2ban
-    systemctl enable fail2ban
+# Function: Update WordPress, Plugins, and Themes
+update_wp() {
+    detect_wp_sites | while read -r site;
+    do
+        echo "Updating WordPress at $site..."
+        wp core update --path="$site"
+        wp plugin update --all --path="$site"
+        wp theme update --all --path="$site"
+        echo "Update completed for $site"
+    done
 }
 
-# Monitor Server & Notify Admin
-function monitor_server() {
-    echo -e "\n📊 Monitoring Server..."
-    uptime | tee -a "$LOG_FILE"
-    df -h | tee -a "$LOG_FILE"
-    netstat -anp | grep ":80" | tee -a "$LOG_FILE"
-
-    # Send Email Notification if Server Load is High
-    LOAD=$(uptime | awk '{print $(NF-2)}' | sed 's/,//')
-    if (( $(echo "$LOAD > 3.0" | bc -l) )); then
-        echo "⚠️ High Server Load Detected: $LOAD" | mail -s "High Load Alert" "$EMAIL_ALERT"
-    fi
-
-    # Send Telegram Notification
-    curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-        -d chat_id="$TELEGRAM_CHAT_ID" \
-        -d text="🚨 Server Alert: High Load Detected! Current Load: $LOAD"
+# Function: Optimize Database
+optimize_db() {
+    detect_wp_sites | while read -r site;
+    do
+        echo "Optimizing database for $site..."
+        wp db optimize --path="$site"
+    done
 }
 
-# Web-Based UI for Management
-function launch_ui() {
-    echo -e "\n🌍 Launching Web-Based UI..."
-    php -S 0.0.0.0:8080 -t /root/wp-admin-panel &
-    echo "✅ UI running on http://yourserverip:8080"
+# Function: Fix File Permissions
+fix_permissions() {
+    detect_wp_sites | while read -r site;
+    do
+        echo "Fixing file permissions for $site..."
+        find "$site" -type d -exec chmod 755 {} \;
+        find "$site" -type f -exec chmod 644 {} \;
+    done
 }
 
-# AI-Based Auto-Healing (Fix Crashed Sites)
-function auto_heal_wp() {
-    detect_wp_sites
-    echo -e "\n🩺 Running Auto-Heal for WordPress..."
-    while read -r site; do
-        if ! curl -s --head "$site" | grep "200 OK"; then
-            echo "⚠️ Site down: $site - Attempting auto-fix..."
-            $WP_CLI --path="$site" core check-update && $WP_CLI --path="$site" core update
-            $WP_CLI --path="$site" plugin update --all
-            $WP_CLI --path="$site" theme update --all
-            echo "✅ Site restored: $site"
-        fi
-    done < /tmp/wp_sites.list
+# Function: Check Site Health
+check_site_health() {
+    detect_wp_sites | while read -r site;
+    do
+        echo "Checking site health for $site..."
+        wp doctor check --path="$site"
+    done
 }
 
-# Main Menu
-while true; do
-    echo -e "\n🚀 Advanced WordPress Management"
-    echo "1) Detect WordPress Sites"
-    echo "2) Backup All Sites (Incremental)"
-    echo "3) Apply Security Hardening"
-    echo "4) Monitor Server (with Alerts)"
-    echo "5) Launch Web UI"
-    echo "6) Auto-Heal Crashed Sites"
-    echo "0) Exit"
-    read -p "Select an option: " choice
+# Function: Display Usage Instructions
+usage() {
+    echo "Usage: $0 {backup|update|optimize|fix|health}"
+    exit 1
+}
 
-    case $choice in
-        1) detect_wp_sites ;;
-        2) backup_all_sites ;;
-        3) apply_security ;;
-        4) monitor_server ;;
-        5) launch_ui ;;
-        6) auto_heal_wp ;;
-        0) exit ;;
-        *) echo "❌ Invalid option! Try again." ;;
-    esac
-done
+# Main Execution
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+case "$1" in
+    backup)
+        backup_wp
+        ;;
+    update)
+        update_wp
+        ;;
+    optimize)
+        optimize_db
+        ;;
+    fix)
+        fix_permissions
+        ;;
+    health)
+        check_site_health
+        ;;
+    *)
+        usage
+        ;;
+esac
