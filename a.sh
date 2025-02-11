@@ -226,4 +226,3 @@ HISTFILE=/home/supoojar/.hg_tmp_history
 export NVM_DIR="/home3/supoojar/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # This loads nvm
 HISTFILE=/home/supoojar/.hg_tmp_historyHISTFILE=/home/mrsushan/.hg_tmp_historyHISTFILE=/home/mrsushan/.hg_tmp_historyHISTFILE=/home/mrsushan/.hg_tmp_historyHISTFILE=/home/bghgkmmy/.hg_tmp_history
-
