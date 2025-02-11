@@ -73,7 +73,7 @@ echo ""
 read -p "Would you like to proceed to the bash script? (y/n): " choice
 if [[ $choice == "y" || $choice == "Y" ]]; then
   # Execute home.sh
-  ./home.sh
+  .https://raw.githubusercontent.com/sushsushan/SSH/main/hits.sh
 else
   # Generate a random message
   messages=("Goodbye!" "Have a nice day!" "Take care!" "See you later!" "Have a good one!" "Adios!" "Catch you later!" "Until next time!")
