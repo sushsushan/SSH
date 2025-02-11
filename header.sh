@@ -1,20 +1,23 @@
 #!/bin/bash
 
-# AI-Based Email Header Analyzer - Converts raw email headers into a human-readable format
+# AI-Based Email Header Analyzer - Clears screen before displaying results
 
 analyze_header() {
     local header="$1"
-    
-    # Extracting Important Fields
-    echo -e "\n\033[1;34m=== Extracted Header Information ===\033[0m\n"
 
+    # Clear screen before displaying results
+    clear
+
+    echo -e "\033[1;34m=== Email Header Analysis ===\033[0m\n"
+
+    # Extracting Important Fields
     from=$(echo "$header" | grep -i "^From:" | head -1 | sed 's/^From: //I')
     to=$(echo "$header" | grep -i "^To:" | head -1 | sed 's/^To: //I')
     subject=$(echo "$header" | grep -i "^Subject:" | head -1 | sed 's/^Subject: //I')
     date=$(echo "$header" | grep -i "^Date:" | head -1 | sed 's/^Date: //I')
     return_path=$(echo "$header" | grep -i "^Return-Path:" | head -1 | sed 's/^Return-Path: //I')
     message_id=$(echo "$header" | grep -i "^Message-ID:" | head -1 | sed 's/^Message-ID: //I')
-    
+
     echo -e "\033[1;32mFrom: \033[0m$from"
     echo -e "\033[1;32mTo: \033[0m$to"
     echo -e "\033[1;32mSubject: \033[0m$subject"
@@ -71,9 +74,6 @@ analyze_header() {
     if [[ "$dmarc_result" =~ "fail" ]]; then
         echo -e "\033[1;31mWarning: DMARC Failed - Possible Phishing or Spoofing Attempt!\033[0m"
     fi
-
-    echo -e "\n\033[1;34m=== Full Header Dump ===\033[0m\n"
-    echo "$header"
 }
 
 # User input for email header
