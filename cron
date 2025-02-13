@@ -1,0 +1,71 @@
+#!/bin/bash
+
+temp_cron_file="/tmp/cron_editor.tmp"
+
+display_cronjobs() {
+    clear
+    echo "==================================="
+    echo "      Advanced Cron Job Manager    "
+    echo "==================================="
+    crontab -l | nl -w2 -s') '
+    echo "==================================="
+}
+
+show_menu() {
+    echo "1) Add a new cron job"
+    echo "2) Modify an existing cron job"
+    echo "3) Delete a cron job"
+    echo "4) Exit"
+    echo "==================================="
+}
+
+add_cronjob() {
+    echo "Enter the schedule in human format (e.g., every day at 3PM, every Monday at noon):"
+    read human_time
+    echo "Enter the command to execute:"
+    read command
+    cron_expression=$(echo "$human_time" | awk '{print "* * * * *"}')  # Placeholder for future parsing logic
+    echo "$cron_expression $command" >> $temp_cron_file
+    crontab $temp_cron_file
+    echo "Cron job added successfully."
+}
+
+modify_cronjob() {
+    crontab -l > $temp_cron_file
+    echo "Current cron jobs:"
+    nl -w2 -s') ' $temp_cron_file
+    echo "Enter the number of the cron job to modify:"
+    read num
+    echo "Enter the new schedule in human format (e.g., every hour, every Sunday at 6AM):"
+    read human_time
+    echo "Enter the new command:"
+    read command
+    cron_expression=$(echo "$human_time" | awk '{print "* * * * *"}')  # Placeholder for future parsing logic
+    sed -i "${num}s/.*/$cron_expression $command/" $temp_cron_file
+    crontab $temp_cron_file
+    echo "Cron job modified successfully."
+}
+
+delete_cronjob() {
+    crontab -l > $temp_cron_file
+    echo "Current cron jobs:"
+    nl -w2 -s') ' $temp_cron_file
+    echo "Enter the number of the cron job to delete:"
+    read num
+    sed -i "${num}d" $temp_cron_file
+    crontab $temp_cron_file
+    echo "Cron job deleted successfully."
+}
+
+while true; do
+    display_cronjobs
+    show_menu
+    read -p "Choose an option: " choice
+    case $choice in
+        1) add_cronjob ;;
+        2) modify_cronjob ;;
+        3) delete_cronjob ;;
+        4) exit 0 ;;
+        *) echo "Invalid option. Please try again." ;;
+    esac
+done
