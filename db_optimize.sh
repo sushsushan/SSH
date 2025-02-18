@@ -36,10 +36,14 @@ while true; do
     WHERE TABLE_SCHEMA='$DB_NAME' 
     ORDER BY Size_MB DESC;" 2>/dev/null
 
-    # Optimize tables
+    # Get tables for optimization
     TABLES=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -Bse 'SHOW TABLES' 2>/dev/null)
+
+    # Optimize tables one by one to avoid query issues
     if [ -n "$TABLES" ]; then
-        mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "OPTIMIZE TABLE $TABLES;" >/dev/null 2>&1
+        for TABLE in $TABLES; do
+            mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "OPTIMIZE TABLE $TABLE;" >/dev/null 2>&1
+        done
     fi
 
     # Display table sizes after optimization
