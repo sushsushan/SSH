@@ -9,20 +9,15 @@ BLUE='\e[34m'
 MAGENTA='\e[35m'
 RESET='\e[0m'
 
-# Current Directory
-CURRENT_DIR=$(pwd)
-PAGE_SIZE=10  # Number of files/folders to show per page
-START_INDEX=0
-
 # Function to Display Directory Contents
 display_files() {
     clear
     echo -e "${CYAN}Current Directory: ${RESET}${PWD}"
-    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
+    echo -e "${BLUE}--------------------------------------------------------------${RESET}"
 
     # Get folder and file details
-    FOLDERS=($(find "$PWD" -maxdepth 1 -type d | tail -n +2))
-    FILES=($(find "$PWD" -maxdepth 1 -type f))
+    FOLDERS=($(find "$PWD" -maxdepth 1 -type d | tail -n +2 | sort))
+    FILES=($(find "$PWD" -maxdepth 1 -type f | sort))
 
     # Count total files and folders
     TOTAL_FOLDERS=${#FOLDERS[@]}
@@ -30,14 +25,16 @@ display_files() {
     TOTAL_SIZE=$(du -sh "$PWD" | awk '{print $1}')
 
     echo -e "${GREEN}Total Folders: ${RESET}$TOTAL_FOLDERS | ${GREEN}Total Files: ${RESET}$TOTAL_FILES | ${GREEN}Total Size: ${RESET}$TOTAL_SIZE"
-    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
+    echo -e "${BLUE}--------------------------------------------------------------${RESET}"
 
     # Display Folders on Left | Files on Right
-    echo -e "${YELLOW}Folders:${RESET}                        ${MAGENTA}Files:${RESET}"
-    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
+    echo -e "${YELLOW}Folders:${RESET}                         ${MAGENTA}Files:${RESET}"
+    echo -e "${BLUE}--------------------------------------------------------------${RESET}"
 
-    # Show a maximum of PAGE_SIZE items
-    for ((i = 0; i < PAGE_SIZE; i++)); do
+    # Find max count to align properly
+    max_count=$((TOTAL_FOLDERS > TOTAL_FILES ? TOTAL_FOLDERS : TOTAL_FILES))
+
+    for ((i = 0; i < max_count; i++)); do
         FOLDER_NAME="${FOLDERS[i]}"
         FILE_NAME="${FILES[i]}"
 
@@ -45,7 +42,7 @@ display_files() {
         printf "%-30s %s\n" "${FOLDER_NAME:-}" "${FILE_NAME:-}"
     done
 
-    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
+    echo -e "${BLUE}--------------------------------------------------------------${RESET}"
 }
 
 # Function to Change Directory with Folder Listing
@@ -55,7 +52,7 @@ change_directory() {
     # Display numbered list of directories
     local index=1
     for folder in "${FOLDERS[@]}"; do
-        echo -e "$index) $folder"
+        echo -e "${YELLOW}$index) $folder${RESET}"
         ((index++))
     done
 
@@ -102,23 +99,6 @@ delete_item() {
         echo -e "${GREEN}Deleted successfully!${RESET}"
     else
         echo -e "${RED}Item not found!${RESET}"
-    fi
-}
-
-# Pagination Functions (for Large Directories)
-next_page() {
-    if [[ $START_INDEX -lt $(($TOTAL_FOLDERS + $TOTAL_FILES - PAGE_SIZE)) ]]; then
-        START_INDEX=$((START_INDEX + PAGE_SIZE))
-    else
-        echo -e "${RED}Already on last page!${RESET}"
-    fi
-}
-
-previous_page() {
-    if [[ $START_INDEX -ge $PAGE_SIZE ]]; then
-        START_INDEX=$((START_INDEX - PAGE_SIZE))
-    else
-        echo -e "${RED}Already on first page!${RESET}"
     fi
 }
 
