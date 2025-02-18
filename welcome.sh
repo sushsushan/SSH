@@ -42,6 +42,7 @@ while true; do
   echo "      | 13      | Advanced Backup      |"
   echo "      | 14      | Logs Viewer          |"
   echo "      | 15      | Main Home Page       |"
+  echo "      | 16      | Exit                 |"
   echo "      +---------+----------------------+"
   echo ""
 
@@ -56,7 +57,7 @@ while true; do
   }
 
   while true; do
-    read -p "Please choose an option (1-15): " choice
+    read -p "Please choose an option (1-16): " choice
 
     case $choice in
       1) execute_remote_script "fm.sh" "https://example.com/scripts/fm.sh"; break ;;
@@ -73,9 +74,10 @@ while true; do
       12) execute_remote_script "server_monitor.sh" "https://example.com/scripts/server_monitor.sh"; break ;;
       13) execute_remote_script "backup.sh" "https://example.com/scripts/backup.sh"; break ;;
       14) execute_remote_script "logs_viewer.sh" "https://example.com/scripts/logs_viewer.sh"; break ;;
-      15) execute_remote_script "home.sh" "https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/asdc.sh"; break ;;
+      15) execute_remote_script "home.sh" "https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/meta_tool.sh"; break ;;
+      16) echo "Exiting..."; exit 0 ;;
       *)
-        echo "Your input is incorrect. Please enter a valid option (1-15)."
+        echo "Your input is incorrect. Please enter a valid option (1-16)."
         ;;
     esac
   done
