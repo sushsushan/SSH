@@ -35,7 +35,7 @@ SELECT table_schema AS 'Database',
 FROM information_schema.tables
 WHERE table_schema = '$DB_NAME';" 2>/dev/null
 
-# 🔹 Size of Each Table in Database
+# 🔹 Table-wise Breakdown
 echo -e "\n📌 Table-wise Breakdown (Size, Rows, Storage Engine):"
 mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
 SELECT TABLE_NAME AS 'Table Name',
@@ -50,7 +50,7 @@ FROM information_schema.tables
 WHERE TABLE_SCHEMA = '$DB_NAME'
 ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC;" 2>/dev/null
 
-# 🔹 Other Key Metrics
+# 🔹 Max Connections & User Limits
 echo -e "\n📌 Global Variables and Connection Limits:"
 mysql -u "$DB_USER" -p"$DB_PASS" -e "
 SHOW GLOBAL VARIABLES LIKE 'max_connections';
@@ -58,6 +58,19 @@ SHOW GLOBAL STATUS LIKE 'max_use%';
 SHOW GLOBAL VARIABLES LIKE 'max_user_connections';
 SHOW GLOBAL VARIABLES LIKE '%connections%';
 SHOW VARIABLES WHERE Variable_name IN ('query_cache_size', 'query_cache_type', 'character_set_server', 'collation_server');" 2>/dev/null
+
+# 🔹 Active Connections
+echo -e "\n📌 Active Database Connections:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW PROCESSLIST;" 2>/dev/null
+
+# 🔹 Slow Queries & Query Performance
+echo -e "\n⚡ Query Performance Report:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW GLOBAL STATUS LIKE 'Slow_queries';
+SHOW STATUS LIKE 'Queries';
+SHOW STATUS LIKE 'Uptime';
+SHOW STATUS LIKE 'Threads_connected';" 2>/dev/null
 
 # 🔹 Storage Engine Breakdown
 echo -e "\n⚙️ Storage Engine Breakdown:"
@@ -76,6 +89,26 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA='$DB_NAME'
 AND DATA_FREE > 0
 ORDER BY DATA_FREE DESC;" 2>/dev/null
+
+# 🔹 Database Users & Privileges
+echo -e "\n🔐 Database Users & Privileges:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SELECT user, host FROM mysql.user;" 2>/dev/null
+
+# 🔹 Global Variables Overview
+echo -e "\n📌 Important Global MySQL Variables:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW VARIABLES LIKE 'innodb_buffer_pool_size';
+SHOW VARIABLES LIKE 'tmp_table_size';
+SHOW VARIABLES LIKE 'max_heap_table_size';
+SHOW VARIABLES LIKE 'log_bin';
+SHOW VARIABLES LIKE 'sync_binlog';" 2>/dev/null
+
+# 🔹 Active Transactions & Locks
+echo -e "\n🔄 Active Transactions & Table Locks:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SELECT * FROM information_schema.innodb_trx;
+SHOW ENGINE INNODB STATUS\G;" 2>/dev/null
 
 # 🔹 Drop temporary user
 uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
