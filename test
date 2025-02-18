@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Set Background Color to #300A24
+echo -e "\033]11;#300A24\007"
+
+# Set Foreground (Text) Color to White (#FFFFFF)
+echo -e "\033]10;#FFFFFF\007"
+
+# Set Cursor Color to Green (#00FF00)
+echo -e "\033]12;#00FF00\007"
+
+# Set Cursor Type to Block
+echo -e "\e[2 q"
+
+# Clear screen to apply new colors immediately
+clear
