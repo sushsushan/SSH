@@ -24,30 +24,37 @@ DB_PASS=$(openssl rand -base64 12)
 uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
 uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
 
-# 🔹 Database Report Header
 echo -e "\n📊 ===== DATABASE REPORT: $DB_NAME ====="
 
-# 🔹 Database Size Summary
+# 🔹 MySQL Server Info
+echo -e "\n🖥️ MySQL Server Information:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW VARIABLES WHERE Variable_name IN ('version', 'version_comment', 'innodb_version', 'max_connections', 'max_user_connections', 'query_cache_size', 'query_cache_limit', 'query_cache_type', 'log_bin', 'character_set_server', 'collation_server');" 2>/dev/null
+
+# 🔹 Database Size Overview
 echo -e "\n📌 Database Size Overview:"
 mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
 SELECT table_schema AS 'Database',
        ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Total Size (MB)',
-       ROUND(SUM(data_length) / 1024 / 1024, 2) AS 'Data Size (MB)',
-       ROUND(SUM(index_length) / 1024 / 1024, 2) AS 'Index Size (MB)',
+       ROUND(SUM(data_length + index_length) / 1024 / 1024 / 1024, 2) AS 'Total Size (GB)',
        COUNT(*) AS 'Total Tables'
 FROM information_schema.tables
 WHERE table_schema = '$DB_NAME';" 2>/dev/null
 
-# 🔹 Top 10 Largest Tables
-echo -e "\n🔍 Top 10 Largest Tables:"
+# 🔹 Total Number of Views, Triggers, Indexes
+echo -e "\n📌 Database Object Counts:"
 mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
-SELECT TABLE_NAME, 
-       ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Size (MB)',
-       ENGINE, TABLE_ROWS
-FROM information_schema.TABLES
-WHERE TABLE_SCHEMA='$DB_NAME'
-ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC
-LIMIT 10;" 2>/dev/null
+SELECT (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME') AS 'Total Tables',
+       (SELECT COUNT(*) FROM information_schema.views WHERE table_schema='$DB_NAME') AS 'Total Views',
+       (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='$DB_NAME') AS 'Total Triggers',
+       (SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema='$DB_NAME') AS 'Total Indexes';" 2>/dev/null
+
+# 🔹 Database Collation & Character Set
+echo -e "\n📌 Database Collation & Character Set:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT schema_name AS 'Database', default_character_set_name AS 'Character Set', default_collation_name AS 'Collation'
+FROM information_schema.schemata
+WHERE schema_name='$DB_NAME';" 2>/dev/null
 
 # 🔹 Storage Engine Breakdown
 echo -e "\n⚙️ Storage Engine Breakdown:"
@@ -57,8 +64,16 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA='$DB_NAME'
 GROUP BY ENGINE;" 2>/dev/null
 
+# 🔹 Table Row Format Breakdown
+echo -e "\n📌 Table Row Format (Fixed, Dynamic, Compressed):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT ROW_FORMAT, COUNT(*) AS 'Total Tables'
+FROM information_schema.tables
+WHERE TABLE_SCHEMA='$DB_NAME'
+GROUP BY ROW_FORMAT;" 2>/dev/null
+
 # 🔹 Index Usage Overview
-echo -e "\n📌 Index Usage Overview:"
+echo -e "\n🔍 Index Usage Overview:"
 mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
 SELECT TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, CARDINALITY
 FROM information_schema.STATISTICS
@@ -75,18 +90,20 @@ WHERE TABLE_SCHEMA='$DB_NAME'
 AND DATA_FREE > 0
 ORDER BY DATA_FREE DESC;" 2>/dev/null
 
-# 🔹 Slow Queries & Performance Issues
-echo -e "\n🐢 Slow Queries & Performance Issues:"
-mysql -u "$DB_USER" -p"$DB_PASS" -e "
-SHOW GLOBAL STATUS LIKE 'Slow_queries';
-SHOW PROCESSLIST;
-SHOW GLOBAL STATUS LIKE 'Threads_running';
-SHOW VARIABLES LIKE 'query_cache_size';" 2>/dev/null
-
 # 🔹 Active Database Connections
-echo -e "\n🔗 Active Connections to Database:"
+echo -e "\n🔗 Active Connections & Sessions:"
 mysql -u "$DB_USER" -p"$DB_PASS" -e "
 SHOW STATUS WHERE Variable_name IN ('Threads_connected', 'Threads_running');" 2>/dev/null
+
+# 🔹 Query Cache Efficiency
+echo -e "\n📌 Query Cache Efficiency:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW STATUS WHERE Variable_name IN ('Qcache_hits', 'Qcache_inserts', 'Qcache_not_cached', 'Qcache_lowmem_prunes');" 2>/dev/null
+
+# 🔹 User Privileges
+echo -e "\n🔐 User Privileges & Grants:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW GRANTS FOR CURRENT_USER();" 2>/dev/null
 
 # 🔹 InnoDB Buffer Pool Usage (If using InnoDB)
 echo -e "\n🛠️ InnoDB Buffer Pool Usage:"
