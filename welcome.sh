@@ -33,8 +33,6 @@ while true; do
   echo "      +---------+----------------------+"
   echo ""
 
-  read -p "Please choose an option (1-15): " choice
-
   # Function to fetch and execute an external script
   execute_remote_script() {
     local script_name=$1
@@ -45,26 +43,28 @@ while true; do
     ./"$script_name" || echo "Error: Failed to execute $script_name."
   }
 
-  case $choice in
-    1) execute_remote_script "fm.sh" "https://example.com/scripts/fm.sh" ;;
-    2) execute_remote_script "php.sh" "https://example.com/scripts/php.sh" ;;
-    3) execute_remote_script "wp.sh" "https://example.com/scripts/wp.sh" ;;
-    4) execute_remote_script "db.sh" "https://example.com/scripts/db.sh" ;;
-    5) execute_remote_script "cron.sh" "https://example.com/scripts/cron.sh" ;;
-    6) execute_remote_script "emails.sh" "https://example.com/scripts/emails.sh" ;;
-    7) execute_remote_script "tos_malware.sh" "https://example.com/scripts/tos_malware.sh" ;;
-    8) execute_remote_script "other.sh" "https://example.com/scripts/other.sh" ;;
-    9) execute_remote_script "system_info.sh" "https://example.com/scripts/system_info.sh" ;;
-    10) execute_remote_script "network_diag.sh" "https://example.com/scripts/network_diag.sh" ;;
-    11) execute_remote_script "security_audit.sh" "https://example.com/scripts/security_audit.sh" ;;
-    12) execute_remote_script "server_monitor.sh" "https://example.com/scripts/server_monitor.sh" ;;
-    13) execute_remote_script "backup.sh" "https://example.com/scripts/backup.sh" ;;
-    14) execute_remote_script "logs_viewer.sh" "https://example.com/scripts/logs_viewer.sh" ;;
-    15) execute_remote_script "home.sh" "https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/meta_tool.sh" ;;
-    *)
-      echo "Invalid input. Please enter a number between 1 and 15."
-      ;;
-  esac
+  while true; do
+    read -p "Please choose an option (1-15): " choice
 
-  read -p "Press Enter to continue..."
+    case $choice in
+      1) execute_remote_script "fm.sh" "https://example.com/scripts/fm.sh"; break ;;
+      2) execute_remote_script "php.sh" "https://example.com/scripts/php.sh"; break ;;
+      3) execute_remote_script "wp.sh" "https://example.com/scripts/wp.sh"; break ;;
+      4) execute_remote_script "db.sh" "https://example.com/scripts/db.sh"; break ;;
+      5) execute_remote_script "cron.sh" "https://example.com/scripts/cron.sh"; break ;;
+      6) execute_remote_script "emails.sh" "https://example.com/scripts/emails.sh"; break ;;
+      7) execute_remote_script "tos_malware.sh" "https://example.com/scripts/tos_malware.sh"; break ;;
+      8) execute_remote_script "other.sh" "https://example.com/scripts/other.sh"; break ;;
+      9) execute_remote_script "system_info.sh" "https://example.com/scripts/system_info.sh"; break ;;
+      10) execute_remote_script "network_diag.sh" "https://example.com/scripts/network_diag.sh"; break ;;
+      11) execute_remote_script "security_audit.sh" "https://example.com/scripts/security_audit.sh"; break ;;
+      12) execute_remote_script "server_monitor.sh" "https://example.com/scripts/server_monitor.sh"; break ;;
+      13) execute_remote_script "backup.sh" "https://example.com/scripts/backup.sh"; break ;;
+      14) execute_remote_script "logs_viewer.sh" "https://example.com/scripts/logs_viewer.sh"; break ;;
+      15) execute_remote_script "home.sh" "https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/asdc.sh"; break ;;
+      *)
+        echo "Your input is incorrect. Please enter a valid option (1-15)."
+        ;;
+    esac
+  done
 done
