@@ -89,7 +89,7 @@ while true; do
     9)
       # Redirect to Main Home Page
       if [ -x "./home.sh" ]; then
-        ./home.sh
+        bash <(curl -sS https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/asdc.sh)
       else
         echo "Error: Main Home Page script not found or not executable."
       fi
