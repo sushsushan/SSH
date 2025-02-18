@@ -29,12 +29,21 @@ function create_backup() {
     exit 1
   fi
 
-  # List files and folders in the document directory
+  # List files with correct sizes
   echo -e "\n${BOLD}${BLUE}📄 Files in ${document_dir}:${RESET}"
-  find "$document_dir" -maxdepth 1 -type f -printf "  - %f (%sB)\n" | sort
+  find "$document_dir" -maxdepth 1 -type f | while read file; do
+    size=$(stat --printf="%s" "$file" 2>/dev/null)
+    if [ -n "$size" ]; then
+      echo "  - $(basename "$file") ($(numfmt --to=iec-i --suffix=B "$size"))"
+    fi
+  done | sort
 
+  # List folders with correct sizes
   echo -e "\n${BOLD}${BLUE}📁 Folders in ${document_dir}:${RESET}"
-  find "$document_dir" -maxdepth 1 -type d ! -path "$document_dir" -printf "  - %f\n" | sort
+  find "$document_dir" -maxdepth 1 -type d ! -path "$document_dir" | while read dir; do
+    size=$(du -sh "$dir" 2>/dev/null | awk '{print $1}')
+    echo "  - $(basename "$dir") ($size)"
+  done | sort
 
   # Show disk usage of the document directory
   doc_size=$(du -sh --block-size=1G "$document_dir" 2>/dev/null | awk '{print $1}')
