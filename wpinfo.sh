@@ -3,34 +3,28 @@
 # Find all directories containing wp-config.php files (assuming they are WordPress installations)
 wp_dirs=$(find "$(pwd)" -type f -name 'wp-config.php' -exec dirname {} \;)
 
-
 # Check if any WordPress installations are found
 if [ -z "$wp_dirs" ]; then
     echo "No WordPress installations found."
     exit 0
 fi
 
-
 # Initialize installation count
 installations_found=0
-
 
 # Display header information once
 echo "-------------------------------------------"
 echo "WordPress Installations Information"
 echo "-------------------------------------------"
 
-
 # Loop through each WordPress installation directory
 for dir in $wp_dirs; do
     # Increment installation count
     ((installations_found++))
 
-
     # Display information for each site
     echo "-------------------------------------------"
     echo "WordPress Installation in Path: $dir"
-
 
     # Navigate to the WordPress installation directory using a subshell
     (
@@ -38,7 +32,6 @@ for dir in $wp_dirs; do
         # Get site URL and home URL
         siteurl=$(wp option get siteurl 2>/dev/null)
         homeurl=$(wp option get home 2>/dev/null)
-
 
         # Get database details from wp-config.php
         db_name=$(grep -o "define( *'DB_NAME', *'\([^']*\)'" wp-config.php | sed "s/define( *'DB_NAME', *'\([^']*\)'/\1/")
@@ -48,10 +41,8 @@ for dir in $wp_dirs; do
         db_collate=$(grep -o "define( *'DB_COLLATE', *'\([^']*\)'" wp-config.php | sed "s/define( *'DB_COLLATE', *'\([^']*\)'/\1/")
         db_prefix=$(grep -o "table_prefix.*'" wp-config.php | sed "s/table_prefix.*'\([^']*\)'.*/\1/")
 
-
         # Get disk usage
         disk_usage=$(du -sh . | cut -f1)
-
 
         # Display information in a more formatted way
         echo "Site URL: $siteurl"
@@ -70,6 +61,5 @@ for dir in $wp_dirs; do
     )
 done
 
-
 # Display the total number of installations found
-echo "Total WordPress Installations Found: $installations_found"
+echo "Total WordPress Installations Found: $installations_found" | less
