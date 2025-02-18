@@ -1,19 +1,13 @@
 #!/bin/bash
 
 # Color Definitions
-echo -e "\033]11;#300A24\007"
-
-# Set Foreground (Text) Color to White (#FFFFFF)
-echo -e "\033]10;#FFFFFF\007"
-
-# Set Cursor Color to Green (#00FF00)
-echo -e "\033]12;#00FF00\007"
-
-# Set Cursor Type to Block
-echo -e "\e[2 q"
-
-# Clear screen to apply new colors immediately
-clear
+GREEN='\e[32m'
+YELLOW='\e[33m'
+CYAN='\e[36m'
+RED='\e[31m'
+BLUE='\e[34m'
+MAGENTA='\e[35m'
+RESET='\e[0m'
 
 # Function to Display Directory Contents
 display_files() {
