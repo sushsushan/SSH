@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Function to handle Ctrl+C and exit signals
+trap 'quit_prompt' SIGINT SIGTERM
+
+quit_prompt() {
+  echo -e "\nYou pressed Ctrl+C! Do you want to quit? (y/n): "
+  read -r choice
+  case "$choice" in
+    [Yy]* ) echo "Exiting..."; exit 0 ;;
+    * ) echo "Returning to menu..."; return ;;
+  esac
+}
+
 while true; do
   clear
   echo " __          __  _                            _           "
