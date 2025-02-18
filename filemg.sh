@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Define Colors
+# Colors for better readability
 GREEN='\e[32m'
 YELLOW='\e[33m'
 CYAN='\e[36m'
@@ -9,38 +9,37 @@ BLUE='\e[34m'
 MAGENTA='\e[35m'
 RESET='\e[0m'
 
-# Page settings
+# Pagination settings
 PAGE_SIZE=5
 START_INDEX=0
 CURRENT_DIR=$(pwd)
 
-# Function to display directory contents
+# Function to display the directory contents
 display_files() {
     clear
     echo -e "${CYAN}Current Directory: ${RESET}${PWD}"
-    echo -e "${BLUE}-------------------------------------------------${RESET}"
+    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
 
     # Count total files and folders
     TOTAL_FILES=$(find "$PWD" -maxdepth 1 -type f | wc -l)
     TOTAL_FOLDERS=$(find "$PWD" -maxdepth 1 -type d | wc -l)
 
-    # Show total size of directory
+    # Get total size of directory
     TOTAL_SIZE=$(du -sh "$PWD" | awk '{print $1}')
-    echo -e "${GREEN}Total Files: ${RESET}$TOTAL_FILES | ${GREEN}Total Folders: ${RESET}$TOTAL_FOLDERS | ${GREEN}Total Size: ${RESET}$TOTAL_SIZE"
-
-    echo -e "${BLUE}-------------------------------------------------${RESET}"
-
-    # Display folders
-    echo -e "${YELLOW}Folders:${RESET}"
-    find "$PWD" -maxdepth 1 -type d | tail -n +2 | nl -w2 -s'. ' | sed "s|^\./||"
-
-    echo -e "${BLUE}-------------------------------------------------${RESET}"
-
-    # Display files with details
-    echo -e "${MAGENTA}Files:${RESET}"
-    ls -lh --time-style=long-iso | grep ^- | awk '{printf "%-20s %-10s %-20s %-20s %s\n", $9, $5, $6, $7, $1}'
     
-    echo -e "${BLUE}-------------------------------------------------${RESET}"
+    echo -e "${GREEN}Total Folders: ${RESET}$TOTAL_FOLDERS | ${GREEN}Total Files: ${RESET}$TOTAL_FILES | ${GREEN}Total Size: ${RESET}$TOTAL_SIZE"
+    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
+
+    # Fetch and display Folders on Left | Files on Right
+    echo -e "${YELLOW}Folders:${RESET}\t\t\t${MAGENTA}Files:${RESET}"
+    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
+
+    FOLDERS=$(find "$PWD" -maxdepth 1 -type d | tail -n +2 | head -n $PAGE_SIZE)
+    FILES=$(find "$PWD" -maxdepth 1 -type f | tail -n +2 | head -n $PAGE_SIZE)
+
+    paste <(echo "$FOLDERS") <(echo "$FILES") | nl -w2 -s'. '
+
+    echo -e "${BLUE}-----------------------------------------------------------${RESET}"
 }
 
 # Function to add a file
@@ -104,7 +103,8 @@ previous_page() {
 # Main loop
 while true; do
     display_files
-    echo -e "${CYAN}Options:${RESET} (a) Add File | (e) Edit File | (d) Delete File/Folder | (n) Next Page | (p) Previous Page | (cd) Change Directory | (q) Quit"
+    echo -e "${CYAN}Options:${RESET}"
+    echo -e " (a) Add File  |  (e) Edit File  |  (d) Delete File/Folder  |  (n) Next Page  |  (p) Previous Page  |  (cd) Change Directory  |  (q) Quit"
     read -p "Enter option: " OPTION
 
     case $OPTION in
