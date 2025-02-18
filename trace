@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Traceroute Analysis Script
+# Parses and analyzes traceroute output for human-readable results
+
+# Set latency thresholds (modify as needed)
+HIGH_LATENCY=100  # ms (Considered high if above this)
+SEVERE_LATENCY=200 # ms (Severe if above this)
+
+echo "Paste your traceroute output and press Ctrl+D when done:"
+input=$(cat)
+
+# Check if input is empty
+if [[ -z "$input" ]]; then
+    echo "No traceroute data received. Exiting."
+    exit 1
+fi
+
+echo -e "\nAnalyzing traceroute...\n"
+
+declare -A issues
+hop_count=0
+while IFS= read -r line; do
+    # Extract hop number, latencies, and IP
+    if [[ "$line" =~ ^[[:space:]]*([0-9]+)[[:space:]]+([^ ]+)[[:space:]]+([^ ]+)[[:space:]]+([^ ]+)[[:space:]]+([^ ]+)[[:space:]]*([a-zA-Z0-9\.-]+)?[[:space:]]*\[?([0-9\.]+)?\]?$ ]]; then
+        hop=${BASH_REMATCH[1]}
+        rtt1=${BASH_REMATCH[2]}
+        rtt2=${BASH_REMATCH[3]}
+        rtt3=${BASH_REMATCH[4]}
+        domain=${BASH_REMATCH[6]}
+        ip=${BASH_REMATCH[7]}
+        
+        hop_count=$hop
+        
+        # Handle packet loss or timeouts
+        if [[ "$rtt1" == "*" && "$rtt2" == "*" && "$rtt3" == "*" ]]; then
+            echo "⚠️  Hop $hop ($domain [$ip]) is not responding. Likely firewall filtering ICMP."
+            issues[$hop]="Potential ICMP filtering (not necessarily an issue)."
+            continue
+        fi
+        
+        # Convert latencies to integers (ignoring ms)
+        rtt1=${rtt1/ms/}
+        rtt2=${rtt2/ms/}
+        rtt3=${rtt3/ms/}
+        avg_latency=$(( (rtt1 + rtt2 + rtt3) / 3 ))
+        
+        # Check for high latency
+        if (( avg_latency > HIGH_LATENCY )); then
+            if (( avg_latency > SEVERE_LATENCY )); then
+                echo "🚨  Severe latency detected at Hop $hop ($domain [$ip]): Avg $avg_latency ms"
+                issues[$hop]="Severe latency (Possible routing issue or congestion)."
+            else
+                echo "⚠️  High latency at Hop $hop ($domain [$ip]): Avg $avg_latency ms"
+                issues[$hop]="High latency (Possible network congestion)."
+            fi
+        else
+            echo "✅  Hop $hop ($domain [$ip]): Avg $avg_latency ms"
+        fi
+    fi
+
+done <<< "$input"
+
+# Summary report
+echo -e "\n🔎 Summary Report:"
+if [[ ${#issues[@]} -eq 0 ]]; then
+    echo "✅ No critical issues detected in traceroute. Network appears stable."
+else
+    for key in "${!issues[@]}"; do
+        echo "⚠️  Hop $key: ${issues[$key]}"
+    done
+fi
+
+# Final Destination Check
+echo -e "\n📌 Checking final hop..."
+if [[ $hop_count -gt 1 ]]; then
+    echo "✅ Final destination reached successfully."
+else
+    echo "🚨 Destination unreachable. Check network settings or ISP."
+fi
