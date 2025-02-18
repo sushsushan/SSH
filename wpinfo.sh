@@ -92,7 +92,7 @@ for dir in $wp_dirs; do
         echo "Disk Usage: $disk_usage"
         echo "-----------------------------------------------------------"
     )
-done
+done | less
 
 # Display the total number of installations found
 echo -e "\n-----------------------------------------------------------"
