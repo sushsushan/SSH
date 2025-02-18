@@ -1,7 +1,8 @@
 #!/bin/bash
 
 clear
-echo "🔍 Fetching available databases..."
+echo -e "\n🔍 Fetching available databases...\n"
+
 DB_LIST=$(uapi Mysql list_databases | grep -oP '(?<=database:\s).+')
 
 if [ -z "$DB_LIST" ]; then
@@ -9,8 +10,7 @@ if [ -z "$DB_LIST" ]; then
     exit 1
 fi
 
-echo -e "\n📌 Available Databases:"
-echo "$DB_LIST"
+echo -e "📌 Available Databases:\n$DB_LIST\n"
 
 read -p "Enter database name: " DB_NAME
 
@@ -26,24 +26,31 @@ DB_PASS=$(openssl rand -base64 12)
 uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
 uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
 
-# Generate Report
-echo -e "\n📊 🔥 Detailed Database Report: $DB_NAME 🔥 📊"
+# Fetch database report
+REPORT=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" --silent --skip-column-names <<EOF 2>/dev/null
 
-mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" --silent --skip-column-names <<EOF 2>/dev/null
+SELECT '─────────────────────────';
+SELECT '🔥 DATABASE REPORT 🔥';
+SELECT '─────────────────────────';
 
-SELECT '\n🚀 Database Summary 🚀';
+SELECT '📌 Database Summary';
+SELECT '─────────────────────────';
 SELECT DATABASE() AS 'Database', 
        COUNT(*) AS 'Total Tables', 
        ROUND(SUM(DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Total Size (MB)'
 FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$DB_NAME';
 
-SELECT '\n📌 Largest Tables (Top 10) 📌';
+SELECT '─────────────────────────';
+SELECT '📊 Largest Tables (Top 10)';
+SELECT '─────────────────────────';
 SELECT TABLE_NAME AS 'Table', 
        ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Size (MB)' 
 FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$DB_NAME' 
 ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC LIMIT 10;
 
-SELECT '\n🛠️ Table Index & Fragmentation Report 🛠️';
+SELECT '─────────────────────────';
+SELECT '🛠️ Table Index & Fragmentation Report';
+SELECT '─────────────────────────';
 SELECT TABLE_NAME AS 'Table', 
        ENGINE, 
        ROUND(DATA_LENGTH / 1024 / 1024, 2) AS 'Data Size (MB)',
@@ -53,23 +60,35 @@ SELECT TABLE_NAME AS 'Table',
 FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$DB_NAME'
 ORDER BY DATA_FREE DESC LIMIT 10;
 
-SELECT '\n🚨 Slow Queries & Performance 🚨';
+SELECT '─────────────────────────';
+SELECT '🚨 Slow Queries & Performance';
+SELECT '─────────────────────────';
 SHOW GLOBAL STATUS LIKE 'Slow_queries';
 
-SELECT '\n📊 Query Cache Status 📊';
+SELECT '─────────────────────────';
+SELECT '📊 Query Cache Status';
+SELECT '─────────────────────────';
 SHOW VARIABLES LIKE 'query_cache_%';
 
-SELECT '\n⏳ Table Locking Statistics ⏳';
+SELECT '─────────────────────────';
+SELECT '⏳ Table Locking Statistics';
+SELECT '─────────────────────────';
 SHOW STATUS LIKE 'Table_locks%';
 
-SELECT '\n🔎 Running Queries & Process List 🔎';
+SELECT '─────────────────────────';
+SELECT '🔎 Running Queries & Process List';
+SELECT '─────────────────────────';
 SHOW FULL PROCESSLIST;
 
-SELECT '\n👤 Current User & Active Connections 👤';
+SELECT '─────────────────────────';
+SELECT '👤 Current User & Active Connections';
+SELECT '─────────────────────────';
 SELECT USER(), DATABASE();
 EOF
+)
 
 # Remove temporary user
 uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
 
-echo -e "\n✅ Report Generated Successfully!"
+# Print report in clean format
+echo -e "\n$REPORT\n✅ Report Generated Successfully!\n"
