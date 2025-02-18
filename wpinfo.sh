@@ -1,10 +1,5 @@
 #!/bin/bash
 
-
-# Clear the screen
-clear
-
-
 # Find all directories containing wp-config.php files (assuming they are WordPress installations)
 wp_dirs=$(find "$(pwd)" -type f -name 'wp-config.php' -exec dirname {} \;)
 
@@ -74,10 +69,6 @@ for dir in $wp_dirs; do
         echo "-------------------------------------------"
     )
 done
-
-
-# Display the total number of installations found
-echo "Total WordPress Installations Found: $installations_found"
 
 
 # Display the total number of installations found
