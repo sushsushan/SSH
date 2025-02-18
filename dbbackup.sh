@@ -30,11 +30,14 @@ while true; do
 
     # Ask user for backup choice with validation
     while true; do
-        echo -en "${YELLOW}Would you like to back up all databases? (yes/no): ${NC}"
+        echo -en "${YELLOW}Would you like to back up all databases? (y/yes or n/no): ${NC}"
         read CHOICE
+        CHOICE=$(echo "$CHOICE" | tr '[:upper:]' '[:lower:]') # Convert input to lowercase
+
         case "$CHOICE" in
-            yes|no) break ;;
-            *) echo -e "${RED}❌ Invalid input. Please enter 'yes' or 'no'.${NC}" ;;
+            y|yes) CHOICE="yes"; break ;;
+            n|no) CHOICE="no"; break ;;
+            *) echo -e "${RED}❌ Invalid input. Please enter 'y/yes' or 'n/no'.${NC}" ;;
         esac
     done
 
@@ -90,16 +93,18 @@ while true; do
     
     # Ask user if they want to run another backup
     while true; do
-        echo -en "${YELLOW}Would you like to take another backup? (yes/no): ${NC}"
+        echo -en "${YELLOW}Would you like to take another backup? (y/yes or n/no): ${NC}"
         read REPEAT
+        REPEAT=$(echo "$REPEAT" | tr '[:upper:]' '[:lower:]') # Convert input to lowercase
+
         case "$REPEAT" in
-            yes) break ;;
-            no)  
+            y|yes) break ;;
+            n|no)  
                 echo -e "${GREEN}✅ Backup process completed. Exiting.${NC}"
                 echo -e "${YELLOW}========================================${NC}"
                 exit 0
                 ;;
-            *) echo -e "${RED}❌ Invalid input. Please enter 'yes' or 'no'.${NC}" ;;
+            *) echo -e "${RED}❌ Invalid input. Please enter 'y/yes' or 'n/no'.${NC}" ;;
         esac
     done
 done
