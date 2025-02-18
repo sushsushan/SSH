@@ -91,6 +91,4 @@ get_valid_input() {
     esac
   done
 }
-
-# Call the function to get user input
 get_valid_input
