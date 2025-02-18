@@ -1,8 +1,7 @@
 #!/bin/bash
 
 clear
-echo -e "\n🔍 Fetching available databases...\n"
-
+echo "📌 Fetching available databases..."
 DB_LIST=$(uapi Mysql list_databases | grep -oP '(?<=database:\s).+')
 
 if [ -z "$DB_LIST" ]; then
@@ -10,85 +9,99 @@ if [ -z "$DB_LIST" ]; then
     exit 1
 fi
 
-echo -e "📌 Available Databases:\n$DB_LIST\n"
-
-read -p "Enter database name: " DB_NAME
+echo "$DB_LIST"
+read -p "📝 Enter database name: " DB_NAME
 
 if ! echo "$DB_LIST" | grep -q "^$DB_NAME$"; then
     echo "❌ Error: Database '$DB_NAME' does not exist."
     exit 1
 fi
 
+# Create temporary user
 DB_USER="$(whoami)_$(openssl rand -hex 4)"
 DB_PASS=$(openssl rand -base64 12)
 
-# Create temporary user
 uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
 uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
 
-# Fetch database report
-REPORT=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" --silent --skip-column-names <<EOF 2>/dev/null
+# 🔹 Database Report Header
+echo -e "\n📊 ===== DATABASE REPORT: $DB_NAME ====="
 
-SELECT '─────────────────────────';
-SELECT '🔥 DATABASE REPORT 🔥';
-SELECT '─────────────────────────';
+# 🔹 Database Size Summary
+echo -e "\n📌 Database Size Overview:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT table_schema AS 'Database',
+       ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Total Size (MB)',
+       ROUND(SUM(data_length) / 1024 / 1024, 2) AS 'Data Size (MB)',
+       ROUND(SUM(index_length) / 1024 / 1024, 2) AS 'Index Size (MB)',
+       COUNT(*) AS 'Total Tables'
+FROM information_schema.tables
+WHERE table_schema = '$DB_NAME';" 2>/dev/null
 
-SELECT '📌 Database Summary';
-SELECT '─────────────────────────';
-SELECT DATABASE() AS 'Database', 
-       COUNT(*) AS 'Total Tables', 
-       ROUND(SUM(DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Total Size (MB)'
-FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$DB_NAME';
+# 🔹 Top 10 Largest Tables
+echo -e "\n🔍 Top 10 Largest Tables:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME, 
+       ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Size (MB)',
+       ENGINE, TABLE_ROWS
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC
+LIMIT 10;" 2>/dev/null
 
-SELECT '─────────────────────────';
-SELECT '📊 Largest Tables (Top 10)';
-SELECT '─────────────────────────';
-SELECT TABLE_NAME AS 'Table', 
-       ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Size (MB)' 
-FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$DB_NAME' 
-ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC LIMIT 10;
+# 🔹 Storage Engine Breakdown
+echo -e "\n⚙️ Storage Engine Breakdown:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT ENGINE, COUNT(*) AS 'Total Tables'
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+GROUP BY ENGINE;" 2>/dev/null
 
-SELECT '─────────────────────────';
-SELECT '🛠️ Table Index & Fragmentation Report';
-SELECT '─────────────────────────';
-SELECT TABLE_NAME AS 'Table', 
-       ENGINE, 
-       ROUND(DATA_LENGTH / 1024 / 1024, 2) AS 'Data Size (MB)',
-       ROUND(INDEX_LENGTH / 1024 / 1024, 2) AS 'Index Size (MB)',
-       ROUND((DATA_FREE / 1024 / 1024), 2) AS 'Fragmented (MB)',
-       TABLE_ROWS AS 'Rows'
-FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$DB_NAME'
-ORDER BY DATA_FREE DESC LIMIT 10;
+# 🔹 Index Usage Overview
+echo -e "\n📌 Index Usage Overview:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, CARDINALITY
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='$DB_NAME'
+ORDER BY TABLE_NAME, SEQ_IN_INDEX;" 2>/dev/null
 
-SELECT '─────────────────────────';
-SELECT '🚨 Slow Queries & Performance';
-SELECT '─────────────────────────';
+# 🔹 Table Fragmentation Check
+echo -e "\n⚠️ Table Fragmentation (Overhead Data):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME,
+       ROUND((DATA_FREE / 1024 / 1024), 2) AS 'Fragmented Space (MB)'
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+AND DATA_FREE > 0
+ORDER BY DATA_FREE DESC;" 2>/dev/null
+
+# 🔹 Slow Queries & Performance Issues
+echo -e "\n🐢 Slow Queries & Performance Issues:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
 SHOW GLOBAL STATUS LIKE 'Slow_queries';
+SHOW PROCESSLIST;
+SHOW GLOBAL STATUS LIKE 'Threads_running';
+SHOW VARIABLES LIKE 'query_cache_size';" 2>/dev/null
 
-SELECT '─────────────────────────';
-SELECT '📊 Query Cache Status';
-SELECT '─────────────────────────';
-SHOW VARIABLES LIKE 'query_cache_%';
+# 🔹 Active Database Connections
+echo -e "\n🔗 Active Connections to Database:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW STATUS WHERE Variable_name IN ('Threads_connected', 'Threads_running');" 2>/dev/null
 
-SELECT '─────────────────────────';
-SELECT '⏳ Table Locking Statistics';
-SELECT '─────────────────────────';
-SHOW STATUS LIKE 'Table_locks%';
+# 🔹 InnoDB Buffer Pool Usage (If using InnoDB)
+echo -e "\n🛠️ InnoDB Buffer Pool Usage:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW ENGINE INNODB STATUS\G" 2>/dev/null | grep -E 'Buffer pool size|Pages free|Pages used|Pages dirty|Pages read|Buffer pool hit rate'
 
-SELECT '─────────────────────────';
-SELECT '🔎 Running Queries & Process List';
-SELECT '─────────────────────────';
-SHOW FULL PROCESSLIST;
-
-SELECT '─────────────────────────';
-SELECT '👤 Current User & Active Connections';
-SELECT '─────────────────────────';
-SELECT USER(), DATABASE();
-EOF
-)
+# 🔹 Table Row Counts & Growth Rate
+echo -e "\n📈 Table Row Counts & Growth Rate:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME, TABLE_ROWS, UPDATE_TIME
+FROM information_schema.tables
+WHERE TABLE_SCHEMA='$DB_NAME'
+ORDER BY TABLE_ROWS DESC;" 2>/dev/null
 
 # Remove temporary user
 uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
 
-# Print report in clean format
-echo -e "\n$REPORT\n✅ Report Generated Successfully!\n"
+echo -e "\n✅ Database report generation complete! ✅"
