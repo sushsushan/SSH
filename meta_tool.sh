@@ -69,7 +69,7 @@ get_valid_input() {
     read -p "Would you like to proceed to the bash script? (y/n): " choice
     case "$choice" in
       y|Y) 
-        bash <(curl -sS https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/asdc.sh)
+        bash <(curl -sS https://raw.githubusercontent.com/sushsushan/SSH/refs/heads/main/welcome.sh)
         break
         ;;
       n|N) 
