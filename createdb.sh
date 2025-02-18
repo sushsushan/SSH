@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Define color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+BLUE='\033[1;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
@@ -15,15 +16,21 @@ db_exists() {
     uapi Mysql list_databases | grep -q "${HOST_USER}_${db_name}"
 }
 
-# Prompt user for choice
-echo -e "${YELLOW}1) System-generated DB name/user  2) Enter your own DB name/user${NC}"
-read -p "Choose (1/2): " choice
+clear
+# Display menu with clear instructions
+echo -e "${BLUE}=========================================${NC}"
+echo -e "${YELLOW}  DATABASE CREATION TOOL${NC}"
+echo -e "${BLUE}=========================================${NC}"
+echo -e "${GREEN}1) Auto-generate database name and user${NC}"
+echo -e "${GREEN}2) Enter your own database name and user${NC}"
+echo -e "${BLUE}=========================================${NC}"
+read -p "Please select an option (1/2): " choice
 
 if [[ "$choice" == "1" ]]; then
     DB_NAME="db_$(date +%s)"
 else
     while true; do
-        read -p "Enter DB name: " DB_NAME
+        read -p "Enter your desired database name: " DB_NAME
         if db_exists "$DB_NAME"; then
             echo -e "${RED}Database '${HOST_USER}_${DB_NAME}' already exists. Please choose another name.${NC}"
         else
@@ -37,20 +44,16 @@ DB_USER="${HOST_USER}_${DB_NAME}"
 DB_PASS=$(openssl rand -base64 12)
 FULL_DB_NAME="${HOST_USER}_${DB_NAME}"
 
-# Create the database
-echo -e "${YELLOW}Creating database...${NC}"
-uapi Mysql create_database name="$FULL_DB_NAME"
+# Creating database, user, and setting privileges silently
+uapi Mysql create_database name="$FULL_DB_NAME" >/dev/null 2>&1
+uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$FULL_DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
 
-# Create the user
-echo -e "${YELLOW}Creating user...${NC}"
-uapi Mysql create_user name="$DB_USER" password="$DB_PASS"
-
-# Set privileges
-echo -e "${YELLOW}Setting privileges...${NC}"
-uapi Mysql set_privileges_on_database database="$FULL_DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES"
-
-# Display credentials
+# Display results in a formatted and visually appealing manner
+echo -e "${BLUE}=========================================${NC}"
 echo -e "${GREEN}Database created successfully!${NC}"
-echo -e "${GREEN}Database: ${FULL_DB_NAME}${NC}"
-echo -e "${GREEN}User: ${DB_USER}${NC}"
-echo -e "${GREEN}Password: ${DB_PASS}${NC}"
+echo -e "${BLUE}=========================================${NC}"
+echo -e "${GREEN}Database Name : ${FULL_DB_NAME}${NC}"
+echo -e "${GREEN}Username      : ${DB_USER}${NC}"
+echo -e "${GREEN}Password      : ${DB_PASS}${NC}"
+echo -e "${BLUE}=========================================${NC}"
