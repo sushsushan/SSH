@@ -1,0 +1,127 @@
+#!/bin/bash
+
+clear
+echo "📌 Fetching available databases..."
+DB_LIST=$(uapi Mysql list_databases | grep -oP '(?<=database:\s).+')
+
+if [ -z "$DB_LIST" ]; then
+    echo "❌ No databases found."
+    exit 1
+fi
+
+echo "$DB_LIST"
+read -p "📝 Enter database name: " DB_NAME
+
+if ! echo "$DB_LIST" | grep -q "^$DB_NAME$"; then
+    echo "❌ Error: Database '$DB_NAME' does not exist."
+    exit 1
+fi
+
+DB_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_PASS=$(openssl rand -base64 12)
+
+uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+echo -e "\n📊 ===== FULL DATABASE REPORT: $DB_NAME ====="
+
+# 🔹 MySQL Server Info
+echo -e "\n🖥️ MySQL Server Information:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW GLOBAL VARIABLES LIKE 'max_connections';
+SHOW GLOBAL STATUS LIKE 'max_use%';
+SHOW GLOBAL VARIABLES LIKE 'max_user_connections';
+SHOW GLOBAL VARIABLES LIKE '%connections%';
+SHOW VARIABLES WHERE Variable_name IN ('version', 'version_comment', 'innodb_version', 'query_cache_size', 'query_cache_type', 'character_set_server', 'collation_server');" 2>/dev/null
+
+# 🔹 Database Size and Total Tables
+echo -e "\n📌 Database Size and Table Count:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT table_schema AS 'Database',
+       ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Total Size (MB)',
+       ROUND(SUM(data_length + index_length) / 1024 / 1024 / 1024, 2) AS 'Total Size (GB)',
+       COUNT(*) AS 'Total Tables'
+FROM information_schema.tables
+WHERE table_schema = '$DB_NAME';" 2>/dev/null
+
+# 🔹 Detailed Table Information
+echo -e "\n📌 Table Details (Size, Rows, Auto-Increment, Engine, Collation):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME AS 'Table',
+       ENGINE AS 'Storage Engine',
+       TABLE_ROWS AS 'Rows',
+       AUTO_INCREMENT AS 'Auto Increment',
+       ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Table Size (MB)',
+       TABLE_COLLATION AS 'Collation'
+FROM information_schema.tables
+WHERE TABLE_SCHEMA = '$DB_NAME'
+ORDER BY TABLE_SIZE DESC;" 2>/dev/null
+
+# 🔹 Database Object Counts
+echo -e "\n📌 Object Counts (Tables, Views, Triggers, Indexes):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME') AS 'Total Tables',
+       (SELECT COUNT(*) FROM information_schema.views WHERE table_schema='$DB_NAME') AS 'Total Views',
+       (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='$DB_NAME') AS 'Total Triggers',
+       (SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema='$DB_NAME') AS 'Total Indexes';" 2>/dev/null
+
+# 🔹 Active Database Sessions
+echo -e "\n🔗 Active Database Sessions:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW FULL PROCESSLIST;" 2>/dev/null
+
+# 🔹 Query Cache Efficiency
+echo -e "\n📌 Query Cache Efficiency:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW STATUS WHERE Variable_name IN ('Qcache_hits', 'Qcache_inserts', 'Qcache_not_cached', 'Qcache_lowmem_prunes');" 2>/dev/null
+
+# 🔹 Storage Engine Breakdown
+echo -e "\n⚙️ Storage Engine Breakdown:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT ENGINE, COUNT(*) AS 'Total Tables'
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+GROUP BY ENGINE;" 2>/dev/null
+
+# 🔹 Table Row Format Breakdown
+echo -e "\n📌 Table Row Format Breakdown:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT ROW_FORMAT, COUNT(*) AS 'Total Tables'
+FROM information_schema.tables
+WHERE TABLE_SCHEMA='$DB_NAME'
+GROUP BY ROW_FORMAT;" 2>/dev/null
+
+# 🔹 Index Usage
+echo -e "\n🔍 Index Usage Details:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, CARDINALITY
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='$DB_NAME'
+ORDER BY TABLE_NAME, SEQ_IN_INDEX;" 2>/dev/null
+
+# 🔹 Database Users and Privileges
+echo -e "\n🔐 Database Users and Privileges:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SELECT User, Host FROM mysql.user;" 2>/dev/null
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW GRANTS FOR CURRENT_USER();" 2>/dev/null
+
+# 🔹 Table Fragmentation (Overhead Data)
+echo -e "\n⚠️ Table Fragmentation (Overhead Data):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME,
+       ROUND((DATA_FREE / 1024 / 1024), 2) AS 'Fragmented Space (MB)'
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+AND DATA_FREE > 0
+ORDER BY DATA_FREE DESC;" 2>/dev/null
+
+# 🔹 InnoDB Buffer Pool Usage
+echo -e "\n🛠️ InnoDB Buffer Pool Usage:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW ENGINE INNODB STATUS\G" 2>/dev/null | grep -E 'Buffer pool size|Pages free|Pages used|Pages dirty|Pages read|Buffer pool hit rate'
+
+# 🔹 Drop temporary user
+uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
+
+echo -e "\n✅ Full database report complete! ✅"
