@@ -1,0 +1,83 @@
+#!/bin/bash
+
+clear
+echo "📌 Fetching available databases..."
+DB_LIST=$(uapi Mysql list_databases | grep -oP '(?<=database:\s).+')
+
+if [ -z "$DB_LIST" ]; then
+    echo "❌ No databases found."
+    exit 1
+fi
+
+echo "$DB_LIST"
+read -p "📝 Enter database name: " DB_NAME
+
+if ! echo "$DB_LIST" | grep -q "^$DB_NAME$"; then
+    echo "❌ Error: Database '$DB_NAME' does not exist."
+    exit 1
+fi
+
+DB_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_PASS=$(openssl rand -base64 12)
+
+uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+echo -e "\n📊 ===== FULL DATABASE REPORT: $DB_NAME ====="
+
+# 🔹 Total Database Size
+echo -e "\n📌 Database Total Size (MB & GB):"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SELECT table_schema AS 'Database',
+       ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Total Size (MB)',
+       ROUND(SUM(data_length + index_length) / 1024 / 1024 / 1024, 2) AS 'Total Size (GB)',
+       COUNT(*) AS 'Total Tables'
+FROM information_schema.tables
+WHERE table_schema = '$DB_NAME';" 2>/dev/null
+
+# 🔹 Size of Each Table in Database
+echo -e "\n📌 Table-wise Breakdown (Size, Rows, Storage Engine):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME AS 'Table Name',
+       ROUND(DATA_LENGTH / 1024 / 1024, 2) AS 'Data Size (MB)',
+       ROUND(INDEX_LENGTH / 1024 / 1024, 2) AS 'Index Size (MB)',
+       ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'Total Table Size (MB)',
+       TABLE_ROWS AS 'Row Count',
+       AUTO_INCREMENT AS 'Auto Increment',
+       ENGINE AS 'Storage Engine',
+       TABLE_COLLATION AS 'Collation'
+FROM information_schema.tables
+WHERE TABLE_SCHEMA = '$DB_NAME'
+ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC;" 2>/dev/null
+
+# 🔹 Other Key Metrics
+echo -e "\n📌 Global Variables and Connection Limits:"
+mysql -u "$DB_USER" -p"$DB_PASS" -e "
+SHOW GLOBAL VARIABLES LIKE 'max_connections';
+SHOW GLOBAL STATUS LIKE 'max_use%';
+SHOW GLOBAL VARIABLES LIKE 'max_user_connections';
+SHOW GLOBAL VARIABLES LIKE '%connections%';
+SHOW VARIABLES WHERE Variable_name IN ('query_cache_size', 'query_cache_type', 'character_set_server', 'collation_server');" 2>/dev/null
+
+# 🔹 Storage Engine Breakdown
+echo -e "\n⚙️ Storage Engine Breakdown:"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT ENGINE, COUNT(*) AS 'Total Tables'
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+GROUP BY ENGINE;" 2>/dev/null
+
+# 🔹 Fragmentation & Unused Space
+echo -e "\n⚠️ Table Fragmentation (Wasted Space):"
+mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+SELECT TABLE_NAME,
+       ROUND((DATA_FREE / 1024 / 1024), 2) AS 'Fragmented Space (MB)'
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='$DB_NAME'
+AND DATA_FREE > 0
+ORDER BY DATA_FREE DESC;" 2>/dev/null
+
+# 🔹 Drop temporary user
+uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
+
+echo -e "\n✅ Full database report complete! ✅"
