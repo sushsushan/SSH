@@ -22,8 +22,8 @@ read -p "Enter your choice: " OPTION
 case $OPTION in
     1)
         read -p "Enter path: " PATH
-        read -p "Is it archived? (yes/no): " ARCHIVED
-        if [[ "$ARCHIVED" == "yes" ]]; then
+        read -p "Is it archived? (y/n): " ARCHIVED
+        if [[ "$ARCHIVED" == "y" ]]; then
             read -p "Enter partition number: " PARTITION
             ARCHIVED_FLAG="--archived --partition=$PARTITION"
         fi
@@ -33,7 +33,7 @@ case $OPTION in
         echo "dclistfiles $USER monthly $SERVER $PATH $ARCHIVED_FLAG"
         ;;
     2)
-        read -p "Enter file path: " FILE_PATH
+        read -p "Enter file path (e.g., public_html/wp-config.php): " FILE_PATH
         echo "Generated commands:"
         echo "dcviewfile $USER $SERVER daily $FILE_PATH"
         echo "dcviewfile $USER $SERVER weekly $FILE_PATH"
@@ -41,12 +41,12 @@ case $OPTION in
         ;;
     3)
         read -p "Enter path to restore: " PATH
-        read -p "Ignore existing files? (yes/no): " IGNORE
-        [[ "$IGNORE" == "yes" ]] && IGNORE_FLAG="--ignore-existing"
+        read -p "Ignore existing files? (y/n): " IGNORE
+        [[ "$IGNORE" == "y" ]] && IGNORE_FLAG="--ignore-existing"
         read -p "Exclude any folders? (comma-separated, e.g., test,demo): " EXCLUDE
         [[ -n "$EXCLUDE" ]] && EXCLUDE_FLAG="--exclude={'$EXCLUDE'}"
-        read -p "Is it archived? (yes/no): " ARCHIVED
-        if [[ "$ARCHIVED" == "yes" ]]; then
+        read -p "Is it archived? (y/n): " ARCHIVED
+        if [[ "$ARCHIVED" == "y" ]]; then
             read -p "Enter partition number: " PARTITION
             ARCHIVED_FLAG="--archived --partition=$PARTITION"
         fi
@@ -59,8 +59,8 @@ case $OPTION in
         ;;
     4)
         read -p "Enter database name: " DBNAME
-        read -p "Is it archived? (yes/no): " ARCHIVED
-        if [[ "$ARCHIVED" == "yes" ]]; then
+        read -p "Is it archived? (y/n): " ARCHIVED
+        if [[ "$ARCHIVED" == "y" ]]; then
             read -p "Enter partition number: " PARTITION
             ARCHIVED_FLAG="--archived --partition=$PARTITION"
         fi
@@ -70,8 +70,8 @@ case $OPTION in
         echo "dcrestoremysqldb $USER $SERVER monthly $DBNAME $ARCHIVED_FLAG"
         ;;
     5)
-        read -p "Is it archived? (yes/no): " ARCHIVED
-        if [[ "$ARCHIVED" == "yes" ]]; then
+        read -p "Is it archived? (y/n): " ARCHIVED
+        if [[ "$ARCHIVED" == "y" ]]; then
             read -p "Enter partition number: " PARTITION
             ARCHIVED_FLAG="--archived --partition=$PARTITION"
         fi
