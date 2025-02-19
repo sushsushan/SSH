@@ -54,7 +54,7 @@ uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
 uapi Mysql set_privileges_on_database database="$FULL_DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
 
 # Import backup to new database
-wp db import "$backup_file" --path="$staging_folder" --quiet
+wp db import "$backup_file" --path="$staging_folder" --quiet --allow-root
 
 # Update wp-config.php in staging site
 sed -i "s/define( *'DB_NAME'.*/define('DB_NAME', '$FULL_DB_NAME');/" "$staging_folder/wp-config.php"
