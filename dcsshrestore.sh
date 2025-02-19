@@ -4,14 +4,21 @@
 USER=$(whoami)
 SERVER=$(hostname)
 
-echo "User: $USER"
-echo "Server: $SERVER"
+clear
 
-# Get domain name from user
+# Display system and initial backup details
+echo -e "\e[1;34mUser:\e[0m $USER"
+echo -e "\e[1;34mServer:\e[0m $SERVER"
+
 read -p "Enter domain name: " DOMAIN
 
-# Display backup options
-echo "Choose an option:"
+echo -e "\n\e[1;32mGenerated commands:\e[0m"
+echo "checkbackupbh $USER $SERVER"
+echo "checkbackuphg $DOMAIN [$SERVER]"
+echo "dcbackuplist $USER $SERVER"
+echo "skipbackup $USER $SERVER next"
+
+echo -e "\n\e[1;33mChoose an option:\e[0m"
 echo "1) Confirm files"
 echo "2) View file"
 echo "3) Restore website"
@@ -27,14 +34,14 @@ case $OPTION in
             read -p "Enter partition number: " PARTITION
             ARCHIVED_FLAG="--archived --partition=$PARTITION"
         fi
-        echo "Generated commands:"
+        echo -e "\n\e[1;32mGenerated commands:\e[0m"
         echo "dclistfiles $USER daily $SERVER $PATH $ARCHIVED_FLAG"
         echo "dclistfiles $USER weekly $SERVER $PATH $ARCHIVED_FLAG"
         echo "dclistfiles $USER monthly $SERVER $PATH $ARCHIVED_FLAG"
         ;;
     2)
         read -p "Enter file path (e.g., public_html/wp-config.php): " FILE_PATH
-        echo "Generated commands:"
+        echo -e "\n\e[1;32mGenerated commands:\e[0m"
         echo "dcviewfile $USER $SERVER daily $FILE_PATH"
         echo "dcviewfile $USER $SERVER weekly $FILE_PATH"
         echo "dcviewfile $USER $SERVER monthly $FILE_PATH"
@@ -55,7 +62,7 @@ case $OPTION in
         fi
         read -p "Notify email? (leave empty for none): " NOTIFY
         [[ -n "$NOTIFY" ]] && NOTIFY_FLAG="--notify=$NOTIFY"
-        echo "Generated commands:"
+        echo -e "\n\e[1;32mGenerated commands:\e[0m"
         echo "dcrestorepath $USER $SERVER daily $PATH $IGNORE_FLAG $EXCLUDE_FLAG $ARCHIVED_FLAG $NOTIFY_FLAG"
         echo "dcrestorepath $USER $SERVER weekly $PATH $IGNORE_FLAG $EXCLUDE_FLAG $ARCHIVED_FLAG $NOTIFY_FLAG"
         echo "dcrestorepath $USER $SERVER monthly $PATH $IGNORE_FLAG $EXCLUDE_FLAG $ARCHIVED_FLAG $NOTIFY_FLAG"
@@ -67,7 +74,7 @@ case $OPTION in
             read -p "Enter partition number: " PARTITION
             ARCHIVED_FLAG="--archived --partition=$PARTITION"
         fi
-        echo "Generated commands:"
+        echo -e "\n\e[1;32mGenerated commands:\e[0m"
         echo "dcrestoremysqldb $USER $SERVER daily $DBNAME $ARCHIVED_FLAG"
         echo "dcrestoremysqldb $USER $SERVER weekly $DBNAME $ARCHIVED_FLAG"
         echo "dcrestoremysqldb $USER $SERVER monthly $DBNAME $ARCHIVED_FLAG"
@@ -80,7 +87,7 @@ case $OPTION in
         fi
         read -p "Notify email? (leave empty for none): " NOTIFY
         [[ -n "$NOTIFY" ]] && NOTIFY_FLAG="--notify=$NOTIFY"
-        echo "Generated commands:"
+        echo -e "\n\e[1;32mGenerated commands:\e[0m"
         echo "dcfulldatarestore $USER daily $SERVER $ARCHIVED_FLAG $NOTIFY_FLAG"
         echo "dcfulldatarestore $USER weekly $SERVER $ARCHIVED_FLAG $NOTIFY_FLAG"
         echo "dcfulldatarestore $USER monthly $SERVER $ARCHIVED_FLAG $NOTIFY_FLAG"
@@ -90,6 +97,6 @@ case $OPTION in
         echo "dcbackuprestore $USER latam $SERVER"
         ;;
     *)
-        echo "Invalid option!"
+        echo -e "\e[1;31mInvalid option!\e[0m"
         ;;
 esac
