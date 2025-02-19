@@ -37,7 +37,9 @@ echo "Creating staging site..."
 rsync -a --exclude='staging' "$main_path/" "$staging_folder/"
 
 # Backup current database
-backup_file="$HOME/backup/$(date +%Y%m%d_%H%M%S)_backup.sql"
+backup_folder="$HOME/backup"
+mkdir -p "$backup_folder"
+backup_file="$backup_folder/$(date +%Y%m%d_%H%M%S)_backup.sql"
 wp db export "$backup_file" --path="$main_path" --quiet
 
 # Create new database and user
