@@ -43,6 +43,13 @@ done
 # Get database credentials & table prefix
 get_wp_config_details
 
+# Fetch current Site URL and Home URL before making changes
+BEFORE_SITE_URL=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -se "SELECT option_value FROM ${TABLE_PREFIX}options WHERE option_name='siteurl';")
+BEFORE_HOME_URL=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -se "SELECT option_value FROM ${TABLE_PREFIX}options WHERE option_name='home';")
+
+echo -e "\n🔍 Current Site URL: $BEFORE_SITE_URL"
+echo -e "🔍 Current Home URL: $BEFORE_HOME_URL"
+
 # Confirm action with Yes/No
 while true; do
     read -p "Proceed with URL update? (y/n): " CONFIRM_ACTION
@@ -75,6 +82,14 @@ for URL in "${OLD_DOMAINS[@]}"; do
     " 2>/dev/null
 done
 
+# Fetch updated Site URL and Home URL after making changes
+AFTER_SITE_URL=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -se "SELECT option_value FROM ${TABLE_PREFIX}options WHERE option_name='siteurl';")
+AFTER_HOME_URL=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -se "SELECT option_value FROM ${TABLE_PREFIX}options WHERE option_name='home';")
+
+echo -e "\n✅ Update Completed!\n"
+echo -e "🔄 Updated Site URL: $BEFORE_SITE_URL → $AFTER_SITE_URL"
+echo -e "🔄 Updated Home URL: $BEFORE_HOME_URL → $AFTER_HOME_URL"
+
 # Run WP-CLI search-replace if available
 if command -v wp &> /dev/null; then
     echo -e "\n🔄 Running WP-CLI search-replace..."
@@ -88,4 +103,4 @@ else
     echo "⚠️ WP-CLI not found. Skipping WP-CLI search-replace."
 fi
 
-echo -e "\n✅ URL Update Completed Successfully!"
+echo -e "\n🎉 All changes have been applied successfully!"
