@@ -3,6 +3,7 @@
 # Fetching system details
 USER=$(whoami)
 SERVER=$(hostname)
+clear
 
 read -p "Enter domain name: " DOMAIN
 
