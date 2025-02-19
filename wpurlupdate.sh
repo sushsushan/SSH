@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Function to extract database credentials from wp-config.php
-get_db_credentials() {
+# Function to extract database credentials & table prefix from wp-config.php
+get_wp_config_details() {
     WP_CONFIG="wp-config.php"
     
     DB_NAME=$(awk -F"'" '/DB_NAME/ {print $4}' $WP_CONFIG)
     DB_USER=$(awk -F"'" '/DB_USER/ {print $4}' $WP_CONFIG)
     DB_PASS=$(awk -F"'" '/DB_PASSWORD/ {print $4}' $WP_CONFIG)
     DB_HOST=$(awk -F"'" '/DB_HOST/ {print $4}' $WP_CONFIG)
+    TABLE_PREFIX=$(awk -F"'" '/table_prefix/ {print $2}' $WP_CONFIG)
 
-    if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" || -z "$DB_HOST" ]]; then
-        echo "❌ Error: Could not extract database credentials from wp-config.php"
+    if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" || -z "$DB_HOST" || -z "$TABLE_PREFIX" ]]; then
+        echo "❌ Error: Could not extract database credentials or table prefix from wp-config.php"
         exit 1
     fi
 }
@@ -39,8 +40,8 @@ while true; do
     esac
 done
 
-# Get database credentials
-get_db_credentials
+# Get database credentials & table prefix
+get_wp_config_details
 
 # Confirm action with Yes/No
 while true; do
@@ -58,19 +59,19 @@ if ! mysql -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" -e "USE $DB_NAME;" 2>/dev/nu
     exit 1
 fi
 
-# Run MySQL queries to replace URLs
+# Run MySQL queries using the detected table prefix
 echo -e "\n🔄 Updating URLs in the database...\n"
 for URL in "${OLD_DOMAINS[@]}"; do
     mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -e "
-    UPDATE wp_options SET option_value = REPLACE(option_value, '$URL', '$NEW_DOMAIN_SECURE') WHERE option_name IN ('siteurl', 'home');
-    UPDATE wp_posts SET post_content = REPLACE(post_content, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_posts SET guid = REPLACE(guid, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_postmeta SET meta_value = REPLACE(meta_value, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_usermeta SET meta_value = REPLACE(meta_value, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_comments SET comment_content = REPLACE(comment_content, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_comments SET comment_author_url = REPLACE(comment_author_url, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_links SET link_url = REPLACE(link_url, '$URL', '$NEW_DOMAIN_SECURE');
-    UPDATE wp_links SET link_image = REPLACE(link_image, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}options SET option_value = REPLACE(option_value, '$URL', '$NEW_DOMAIN_SECURE') WHERE option_name IN ('siteurl', 'home');
+    UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}usermeta SET meta_value = REPLACE(meta_value, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}links SET link_url = REPLACE(link_url, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE ${TABLE_PREFIX}links SET link_image = REPLACE(link_image, '$URL', '$NEW_DOMAIN_SECURE');
     " 2>/dev/null
 done
 
