@@ -24,11 +24,10 @@ OLD_DOMAINS=("http://$OLD_DOMAIN" "https://$OLD_DOMAIN" "$OLD_DOMAIN")
 NEW_DOMAIN_SECURE="https://$NEW_DOMAIN"
 
 # Display detected values
-echo -e "\nReplacing the following URLs:"
+echo -e "\nThe following URLs will be replaced:"
 for URL in "${OLD_DOMAINS[@]}"; do
     echo " - $URL  →  $NEW_DOMAIN_SECURE"
 done
-echo ""
 
 # Confirm backup
 while true; do
@@ -43,14 +42,15 @@ done
 # Get database credentials
 get_db_credentials
 
-# Confirm action
-echo "Database Name: $DB_NAME"
-echo "Proceeding will update the database. Type 'confirm' to continue."
-read -p "> " CONFIRM_ACTION
-if [[ "$CONFIRM_ACTION" != "confirm" ]]; then
-    echo "Operation aborted."
-    exit 1
-fi
+# Confirm action with Yes/No
+while true; do
+    read -p "Proceed with URL update? (y/n): " CONFIRM_ACTION
+    case "$CONFIRM_ACTION" in
+        [yY]) break ;;
+        [nN]) echo "Operation aborted."; exit 1 ;;
+        *) echo "❌ Invalid input! Please enter 'y' for Yes or 'n' for No." ;;
+    esac
+done
 
 # Check MySQL connection
 if ! mysql -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" -e "USE $DB_NAME;" 2>/dev/null; then
@@ -58,15 +58,8 @@ if ! mysql -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" -e "USE $DB_NAME;" 2>/dev/nu
     exit 1
 fi
 
-# Show occurrences before replacement
-echo -e "\nChecking URLs before replacement..."
-for URL in "${OLD_DOMAINS[@]}"; do
-    COUNT=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -e "SELECT COUNT(*) FROM wp_posts WHERE post_content LIKE '%$URL%';" | tail -n 1)
-    echo "Occurrences of $URL: $COUNT"
-done
-
-# Run MySQL queries to replace all URLs across critical tables
-echo -e "\nUpdating URLs in the database..."
+# Run MySQL queries to replace URLs
+echo -e "\n🔄 Updating URLs in the database...\n"
 for URL in "${OLD_DOMAINS[@]}"; do
     mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -e "
     UPDATE wp_options SET option_value = REPLACE(option_value, '$URL', '$NEW_DOMAIN_SECURE') WHERE option_name IN ('siteurl', 'home');
@@ -81,22 +74,17 @@ for URL in "${OLD_DOMAINS[@]}"; do
     " 2>/dev/null
 done
 
-# Run WP-CLI search-replace for serialized data
+# Run WP-CLI search-replace if available
 if command -v wp &> /dev/null; then
-    wp search-replace "${OLD_DOMAINS[1]}" "$NEW_DOMAIN_SECURE" --all-tables --precise --recurse-objects --allow-root
+    echo -e "\n🔄 Running WP-CLI search-replace..."
+    WP_CLI_OUTPUT=$(wp search-replace "${OLD_DOMAINS[1]}" "$NEW_DOMAIN_SECURE" --all-tables --precise --recurse-objects --allow-root --report-changed-only)
+    if [[ -n "$WP_CLI_OUTPUT" ]]; then
+        echo "$WP_CLI_OUTPUT"
+    else
+        echo "No changes were made via WP-CLI."
+    fi
 else
     echo "⚠️ WP-CLI not found. Skipping WP-CLI search-replace."
 fi
 
-# Show occurrences after replacement
-echo -e "\nChecking URLs after replacement..."
-for URL in "${OLD_DOMAINS[@]}"; do
-    COUNT=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -e "SELECT COUNT(*) FROM wp_posts WHERE post_content LIKE '%$URL%';" | tail -n 1)
-    echo "Occurrences of $URL: $COUNT"
-done
-
-# Optimize tables
-echo -e "\nOptimizing database tables..."
-mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -e "OPTIMIZE TABLE $(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -Bse 'SHOW TABLES' | tr '\n' ',' | sed 's/,$//');" 2>/dev/null
-
-echo -e "\n✅ URL Migration Completed Successfully!"
+echo -e "\n✅ URL Update Completed Successfully!"
