@@ -42,9 +42,12 @@ case $OPTION in
     3)
         read -p "Enter path to restore: " PATH
         read -p "Ignore existing files? (y/n): " IGNORE
-        [[ "$IGNORE" == "y" ]] && IGNORE_FLAG="--ignore-existing"
-        read -p "Exclude any folders? (comma-separated, e.g., test,demo): " EXCLUDE
-        [[ -n "$EXCLUDE" ]] && EXCLUDE_FLAG="--exclude={'$EXCLUDE'}"
+        if [[ "$IGNORE" == "y" ]]; then
+            IGNORE_FLAG="--ignore-existing"
+        else
+            read -p "Exclude any folders? (comma-separated, e.g., test,demo): " EXCLUDE
+            [[ -n "$EXCLUDE" ]] && EXCLUDE_FLAG="--exclude={'$EXCLUDE'}"
+        fi
         read -p "Is it archived? (y/n): " ARCHIVED
         if [[ "$ARCHIVED" == "y" ]]; then
             read -p "Enter partition number: " PARTITION
