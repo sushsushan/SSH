@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Function to fetch DB credentials from wp-config.php
+get_db_credentials() {
+    WP_CONFIG="wp-config.php"
+    DB_NAME=$(grep -oP "(?<=DB_NAME', ')[^']*" $WP_CONFIG)
+    DB_USER=$(grep -oP "(?<=DB_USER', ')[^']*" $WP_CONFIG)
+    DB_PASS=$(grep -oP "(?<=DB_PASSWORD', ')[^']*" $WP_CONFIG)
+    DB_HOST=$(grep -oP "(?<=DB_HOST', ')[^']*" $WP_CONFIG)
+}
+
+# Prompt user for old and new domain
+read -p "Enter OLD domain (e.g., olddomain.com or www.olddomain.com): " OLD_DOMAIN
+read -p "Enter NEW domain (e.g., newdomain.com or www.newdomain.com): " NEW_DOMAIN
+
+# Detect www preference
+if [[ $OLD_DOMAIN == www.* ]]; then
+    OLD_DOMAINS=("http://$OLD_DOMAIN" "https://$OLD_DOMAIN" "$OLD_DOMAIN")
+else
+    OLD_DOMAINS=("http://$OLD_DOMAIN" "https://$OLD_DOMAIN" "$OLD_DOMAIN")
+fi
+
+# Convert all replacements to use https://
+NEW_DOMAIN_SECURE="https://$NEW_DOMAIN"
+
+# Display detected values
+echo -e "\nReplacing the following URLs:"
+for URL in "${OLD_DOMAINS[@]}"; do
+    echo " - $URL  →  $NEW_DOMAIN_SECURE"
+done
+echo -e "\n"
+
+# Confirm backup
+read -p "Do you have a full database backup? (yes/no): " CONFIRM_BACKUP
+if [[ "$CONFIRM_BACKUP" != "yes" ]]; then
+    echo "Please take a backup before proceeding."
+    exit 1
+fi
+
+# Get database credentials
+get_db_credentials
+
+# Confirm action
+echo "Database Name: $DB_NAME"
+echo "Proceeding will update the database. Type 'confirm' to continue."
+read -p "> " CONFIRM_ACTION
+if [[ "$CONFIRM_ACTION" != "confirm" ]]; then
+    echo "Operation aborted."
+    exit 1
+fi
+
+# Create new MySQL user & grant privileges
+DB_NEW_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_NEW_PASS=$(openssl rand -base64 12)
+uapi Mysql create_user name="$DB_NEW_USER" password="$DB_NEW_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_NEW_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+# Show before replacement
+echo -e "\nChecking URLs before replacement..."
+for URL in "${OLD_DOMAINS[@]}"; do
+    COUNT=$(mysql -u "$DB_NEW_USER" -p"$DB_NEW_PASS" -D "$DB_NAME" -e "SELECT COUNT(*) FROM wp_posts WHERE post_content LIKE '%$URL%';" | tail -n 1)
+    echo "Occurrences of $URL: $COUNT"
+done
+
+# Run search-replace using WP-CLI
+for URL in "${OLD_DOMAINS[@]}"; do
+    wp search-replace "$URL" "$NEW_DOMAIN_SECURE" --all-tables
+done
+
+# Show after replacement
+echo -e "\nChecking URLs after replacement..."
+for URL in "${OLD_DOMAINS[@]}"; do
+    COUNT=$(mysql -u "$DB_NEW_USER" -p"$DB_NEW_PASS" -D "$DB_NAME" -e "SELECT COUNT(*) FROM wp_posts WHERE post_content LIKE '%$URL%';" | tail -n 1)
+    echo "Occurrences of $URL: $COUNT"
+done
+
+# Clean up MySQL user
+uapi Mysql delete_user name="$DB_NEW_USER" >/dev/null 2>&1
+
+echo -e "\n✅ URL Migration Completed!"
