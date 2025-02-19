@@ -3,7 +3,6 @@
 # Fetching system details
 USER=$(whoami)
 SERVER=$(hostname)
-clear
 
 read -p "Enter domain name: " DOMAIN
 
@@ -96,7 +95,7 @@ case $OPTION in
         ;;
 esac
 
-command -v clear >/dev/null 2>&1 && clear
+clear
 # Display system and backup details before results
 echo -e "\e[1;34mUser:\e[0m $USER"
 echo -e "\e[1;34mServer:\e[0m $SERVER"
