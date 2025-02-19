@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Function to fetch DB credentials from wp-config.php
+# Function to extract database credentials from wp-config.php
 get_db_credentials() {
     WP_CONFIG="wp-config.php"
     DB_NAME=$(grep -oP "(?<=DB_NAME', ')[^']*" $WP_CONFIG)
@@ -20,7 +20,7 @@ else
     OLD_DOMAINS=("http://$OLD_DOMAIN" "https://$OLD_DOMAIN" "$OLD_DOMAIN")
 fi
 
-# Convert all replacements to use https://
+# Force all replacements to use HTTPS
 NEW_DOMAIN_SECURE="https://$NEW_DOMAIN"
 
 # Display detected values
@@ -62,10 +62,23 @@ for URL in "${OLD_DOMAINS[@]}"; do
     echo "Occurrences of $URL: $COUNT"
 done
 
-# Run search-replace using WP-CLI
+# Run MySQL queries to replace all URLs across critical tables
 for URL in "${OLD_DOMAINS[@]}"; do
-    wp search-replace "$URL" "$NEW_DOMAIN_SECURE" --all-tables
+    mysql -u "$DB_NEW_USER" -p"$DB_NEW_PASS" -D "$DB_NAME" -e "
+    UPDATE wp_options SET option_value = REPLACE(option_value, '$URL', '$NEW_DOMAIN_SECURE') WHERE option_name IN ('siteurl', 'home');
+    UPDATE wp_posts SET post_content = REPLACE(post_content, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_posts SET guid = REPLACE(guid, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_postmeta SET meta_value = REPLACE(meta_value, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_usermeta SET meta_value = REPLACE(meta_value, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_comments SET comment_content = REPLACE(comment_content, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_comments SET comment_author_url = REPLACE(comment_author_url, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_links SET link_url = REPLACE(link_url, '$URL', '$NEW_DOMAIN_SECURE');
+    UPDATE wp_links SET link_image = REPLACE(link_image, '$URL', '$NEW_DOMAIN_SECURE');
+    "
 done
+
+# Run WP-CLI search-replace for serialized data
+wp search-replace "${OLD_DOMAINS[1]}" "$NEW_DOMAIN_SECURE" --all-tables --precise --recurse-objects
 
 # Show after replacement
 echo -e "\nChecking URLs after replacement..."
@@ -73,6 +86,9 @@ for URL in "${OLD_DOMAINS[@]}"; do
     COUNT=$(mysql -u "$DB_NEW_USER" -p"$DB_NEW_PASS" -D "$DB_NAME" -e "SELECT COUNT(*) FROM wp_posts WHERE post_content LIKE '%$URL%';" | tail -n 1)
     echo "Occurrences of $URL: $COUNT"
 done
+
+# Optimize tables
+mysql -u "$DB_NEW_USER" -p"$DB_NEW_PASS" -D "$DB_NAME" -e "OPTIMIZE TABLE $(mysql -u "$DB_NEW_USER" -p"$DB_NEW_PASS" -D "$DB_NAME" -Bse 'SHOW TABLES' | tr '\n' ',' | sed 's/,$//');"
 
 # Clean up MySQL user
 uapi Mysql delete_user name="$DB_NEW_USER" >/dev/null 2>&1
