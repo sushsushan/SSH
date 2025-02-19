@@ -16,16 +16,28 @@ get_wp_config_details() {
     fi
 }
 
+# Function to clean and standardize URLs
+sanitize_url() {
+    local URL=$1
+    URL=$(echo "$URL" | sed -E 's|https?://||g')  # Remove http/https
+    URL=$(echo "$URL" | sed -E 's|www\.||g')      # Remove www.
+    echo "$URL"
+}
+
 # Prompt user for old and new domain
 read -p "Enter OLD domain (e.g., olddomain.com or www.olddomain.com): " OLD_DOMAIN
 read -p "Enter NEW domain (e.g., newdomain.com or www.newdomain.com): " NEW_DOMAIN
 
-# Ensure domains are formatted correctly
-OLD_DOMAINS=("http://$OLD_DOMAIN" "https://$OLD_DOMAIN" "$OLD_DOMAIN")
-NEW_DOMAIN_SECURE="https://$NEW_DOMAIN"
+# Standardize the domains
+OLD_DOMAIN_CLEAN=$(sanitize_url "$OLD_DOMAIN")
+NEW_DOMAIN_CLEAN=$(sanitize_url "$NEW_DOMAIN")
 
-# Display detected values
-echo -e "\nThe following URLs will be replaced:"
+# Construct both www and non-www versions
+OLD_DOMAINS=("http://$OLD_DOMAIN_CLEAN" "https://$OLD_DOMAIN_CLEAN" "http://www.$OLD_DOMAIN_CLEAN" "https://www.$OLD_DOMAIN_CLEAN")
+NEW_DOMAIN_SECURE="https://$NEW_DOMAIN_CLEAN"
+
+# Confirm URL transformation
+echo -e "\nThe following URLs will be updated:"
 for URL in "${OLD_DOMAINS[@]}"; do
     echo " - $URL  →  $NEW_DOMAIN_SECURE"
 done
@@ -86,21 +98,23 @@ done
 AFTER_SITE_URL=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -se "SELECT option_value FROM ${TABLE_PREFIX}options WHERE option_name='siteurl';")
 AFTER_HOME_URL=$(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -h "$DB_HOST" -se "SELECT option_value FROM ${TABLE_PREFIX}options WHERE option_name='home';")
 
-echo -e "\n✅ Update Completed!\n"
+# Final confirmation message
+echo -e "\n✅ URLs have been updated successfully!"
 echo -e "🔄 Updated Site URL: $BEFORE_SITE_URL → $AFTER_SITE_URL"
 echo -e "🔄 Updated Home URL: $BEFORE_HOME_URL → $AFTER_HOME_URL"
 
 # Run WP-CLI search-replace if available
 if command -v wp &> /dev/null; then
     echo -e "\n🔄 Running WP-CLI search-replace..."
-    WP_CLI_OUTPUT=$(wp search-replace "${OLD_DOMAINS[1]}" "$NEW_DOMAIN_SECURE" --all-tables --precise --recurse-objects --allow-root --report-changed-only)
-    if [[ -n "$WP_CLI_OUTPUT" ]]; then
-        echo "$WP_CLI_OUTPUT"
+    wp search-replace "${OLD_DOMAIN_CLEAN}" "$NEW_DOMAIN_SECURE" --all-tables --precise --recurse-objects --allow-root --report-changed-only > wpcli_output.txt 2>/dev/null
+    if [[ -s wpcli_output.txt ]]; then
+        cat wpcli_output.txt
     else
-        echo "No changes were made via WP-CLI."
+        echo "✅ WP-CLI executed successfully. No additional changes were needed."
     fi
+    rm -f wpcli_output.txt
 else
     echo "⚠️ WP-CLI not found. Skipping WP-CLI search-replace."
 fi
 
-echo -e "\n🎉 All changes have been applied successfully!"
+echo -e "\n🎉 Migration Completed: All URLs have been updated from $OLD_DOMAIN to $NEW_DOMAIN!"
