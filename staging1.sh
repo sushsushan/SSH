@@ -12,13 +12,14 @@ fi
 echo "Fetching WordPress details..."
 wp_home=$(wp option get home --path="$main_path" 2>/dev/null)
 wp_siteurl=$(wp option get siteurl --path="$main_path" 2>/dev/null)
-db_info=$(grep -E "DB_NAME|DB_USER|DB_PASSWORD" "$main_path/wp-config.php")
+db_name=$(grep "DB_NAME" "$main_path/wp-config.php" | cut -d "'" -f 4)
+db_user=$(grep "DB_USER" "$main_path/wp-config.php" | cut -d "'" -f 4)
+db_password=$(grep "DB_PASSWORD" "$main_path/wp-config.php" | cut -d "'" -f 4)
 
 echo "Total Size: $(du -sh "$main_path" | cut -f1)"
 echo "WordPress Home URL: $wp_home"
 echo "WordPress Site URL: $wp_siteurl"
-echo "Database Info:"
-echo "$db_info"
+echo "Database Info: DB_NAME=$db_name, DB_USER=$db_user"
 
 # Ask user to create staging site
 read -p "Would you like to create a staging site? (y/n): " choice
@@ -54,9 +55,9 @@ uapi Mysql set_privileges_on_database database="$FULL_DB_NAME" user="$DB_USER" p
 wp db import "$backup_file" --path="$staging_folder" --quiet
 
 # Update wp-config.php in staging site
-sed -i "s/define(\'DB_NAME\'.*/define('DB_NAME', '$FULL_DB_NAME');/" "$staging_folder/wp-config.php"
-sed -i "s/define(\'DB_USER\'.*/define('DB_USER', '$DB_USER');/" "$staging_folder/wp-config.php"
-sed -i "s/define(\'DB_PASSWORD\'.*/define('DB_PASSWORD', '$DB_PASS');/" "$staging_folder/wp-config.php"
+sed -i "s/define( *'DB_NAME'.*/define('DB_NAME', '$FULL_DB_NAME');/" "$staging_folder/wp-config.php"
+sed -i "s/define( *'DB_USER'.*/define('DB_USER', '$DB_USER');/" "$staging_folder/wp-config.php"
+sed -i "s/define( *'DB_PASSWORD'.*/define('DB_PASSWORD', '$DB_PASS');/" "$staging_folder/wp-config.php"
 
 # Completion message
 echo "Staging site created successfully."
