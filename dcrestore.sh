@@ -96,7 +96,7 @@ case $OPTION in
         ;;
 esac
 
-clear
+command -v clear >/dev/null 2>&1 && clear
 # Display system and backup details before results
 echo -e "\e[1;34mUser:\e[0m $USER"
 echo -e "\e[1;34mServer:\e[0m $SERVER"
