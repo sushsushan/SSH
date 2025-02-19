@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# Fetching system details
+USER=$(whoami)
+SERVER=$(hostname)
+
+echo "User: $USER"
+echo "Server: $SERVER"
+
+# Get domain name from user
+read -p "Enter domain name: " DOMAIN
+
+# Display backup options
+echo "Choose an option:"
+echo "1) Confirm files"
+echo "2) View file"
+echo "3) Restore website"
+echo "4) Restore database"
+echo "5) Full restore"
+read -p "Enter your choice: " OPTION
+
+case $OPTION in
+    1)
+        read -p "Enter path: " PATH
+        read -p "Is it archived? (yes/no): " ARCHIVED
+        if [[ "$ARCHIVED" == "yes" ]]; then
+            read -p "Enter partition number: " PARTITION
+            ARCHIVED_FLAG="--archived --partition=$PARTITION"
+        fi
+        echo "Generated commands:"
+        echo "dclistfiles $USER daily $SERVER $PATH $ARCHIVED_FLAG"
+        echo "dclistfiles $USER weekly $SERVER $PATH $ARCHIVED_FLAG"
+        echo "dclistfiles $USER monthly $SERVER $PATH $ARCHIVED_FLAG"
+        ;;
+    2)
+        read -p "Enter file path: " FILE_PATH
+        echo "Generated commands:"
+        echo "dcviewfile $USER $SERVER daily $FILE_PATH"
+        echo "dcviewfile $USER $SERVER weekly $FILE_PATH"
+        echo "dcviewfile $USER $SERVER monthly $FILE_PATH"
+        ;;
+    3)
+        read -p "Enter path to restore: " PATH
+        read -p "Ignore existing files? (yes/no): " IGNORE
+        [[ "$IGNORE" == "yes" ]] && IGNORE_FLAG="--ignore-existing"
+        read -p "Exclude any folders? (comma-separated, e.g., test,demo): " EXCLUDE
+        [[ -n "$EXCLUDE" ]] && EXCLUDE_FLAG="--exclude={'$EXCLUDE'}"
+        read -p "Is it archived? (yes/no): " ARCHIVED
+        if [[ "$ARCHIVED" == "yes" ]]; then
+            read -p "Enter partition number: " PARTITION
+            ARCHIVED_FLAG="--archived --partition=$PARTITION"
+        fi
+        read -p "Notify email? (leave empty for none): " NOTIFY
+        [[ -n "$NOTIFY" ]] && NOTIFY_FLAG="--notify=$NOTIFY"
+        echo "Generated commands:"
+        echo "dcrestorepath $USER $SERVER daily $PATH $IGNORE_FLAG $EXCLUDE_FLAG $ARCHIVED_FLAG $NOTIFY_FLAG"
+        echo "dcrestorepath $USER $SERVER weekly $PATH $IGNORE_FLAG $EXCLUDE_FLAG $ARCHIVED_FLAG $NOTIFY_FLAG"
+        echo "dcrestorepath $USER $SERVER monthly $PATH $IGNORE_FLAG $EXCLUDE_FLAG $ARCHIVED_FLAG $NOTIFY_FLAG"
+        ;;
+    4)
+        read -p "Enter database name: " DBNAME
+        read -p "Is it archived? (yes/no): " ARCHIVED
+        if [[ "$ARCHIVED" == "yes" ]]; then
+            read -p "Enter partition number: " PARTITION
+            ARCHIVED_FLAG="--archived --partition=$PARTITION"
+        fi
+        echo "Generated commands:"
+        echo "dcrestoremysqldb $USER $SERVER daily $DBNAME $ARCHIVED_FLAG"
+        echo "dcrestoremysqldb $USER $SERVER weekly $DBNAME $ARCHIVED_FLAG"
+        echo "dcrestoremysqldb $USER $SERVER monthly $DBNAME $ARCHIVED_FLAG"
+        ;;
+    5)
+        read -p "Is it archived? (yes/no): " ARCHIVED
+        if [[ "$ARCHIVED" == "yes" ]]; then
+            read -p "Enter partition number: " PARTITION
+            ARCHIVED_FLAG="--archived --partition=$PARTITION"
+        fi
+        read -p "Notify email? (leave empty for none): " NOTIFY
+        [[ -n "$NOTIFY" ]] && NOTIFY_FLAG="--notify=$NOTIFY"
+        echo "Generated commands:"
+        echo "dcfulldatarestore $USER daily $SERVER $ARCHIVED_FLAG $NOTIFY_FLAG"
+        echo "dcfulldatarestore $USER weekly $SERVER $ARCHIVED_FLAG $NOTIFY_FLAG"
+        echo "dcfulldatarestore $USER monthly $SERVER $ARCHIVED_FLAG $NOTIFY_FLAG"
+        echo "dcbackuprestore $USER daily $SERVER"
+        echo "dcbackuprestore $USER weekly $SERVER"
+        echo "dcbackuprestore $USER monthly $SERVER"
+        echo "dcbackuprestore $USER latam $SERVER"
+        ;;
+    *)
+        echo "Invalid option!"
+        ;;
+esac
