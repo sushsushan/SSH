@@ -63,11 +63,11 @@ cat <<EOF > "$DB_CONNECT_FILE"
 \$db_pass = '$DB_PASS';
 
 try {
-    \$conn = new PDO("mysql:host=\$db_host;dbname=\$db_name", \$db_user, \$db_pass);
+    \$conn = new PDO("mysql:host=\$db_host;dbname=\$db_name;charset=utf8", \$db_user, \$db_pass);
     \$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    echo "Database connection successful!";
+    echo "✅ Database connection successful!";
 } catch (PDOException \$e) {
-    die("Connection failed: " . \$e->getMessage());
+    die("❌ Connection failed: " . \$e->getMessage());
 }
 ?>
 EOF
@@ -83,4 +83,3 @@ echo -e "🔑 Database Password: $DB_PASS"
 echo -e "🖥️ Database Host: $DB_HOST"
 
 echo -e "\nTest the connection by accessing: $DB_CONNECT_FILE"
-
