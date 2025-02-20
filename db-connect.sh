@@ -27,17 +27,17 @@ check_command() {
 }
 
 # Create database
-echo "🔄 Creating database..."
+echo "🔄 Creating database: $FULL_DB_NAME..."
 uapi Mysql create_database name="$FULL_DB_NAME"
 check_command "Database creation"
 
 # Create user
-echo "🔄 Creating user..."
+echo "🔄 Creating user: $DB_USER..."
 uapi Mysql create_user name="$DB_USER" password="$DB_PASS"
 check_command "User creation"
 
 # Assign privileges
-echo "🔄 Setting privileges..."
+echo "🔄 Assigning privileges to user: $DB_USER..."
 uapi Mysql set_privileges_on_database database="$FULL_DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES"
 check_command "Assigning privileges"
 
@@ -49,6 +49,13 @@ check_command "Privilege verification"
 # Ask for the path where db_connect.php should be created
 read -p "Enter the full file path where you want to save db_connect.php (e.g., /var/www/html/db_connect.php): " DB_CONNECT_FILE
 
+# Ensure the directory exists
+DIR_PATH=$(dirname "$DB_CONNECT_FILE")
+if [[ ! -d "$DIR_PATH" ]]; then
+    echo "❌ Error: Directory does not exist: $DIR_PATH"
+    exit 1
+fi
+
 # Ensure the file does not exist
 if [[ -f "$DB_CONNECT_FILE" ]]; then
     echo "⚠️ File already exists at $DB_CONNECT_FILE. Exiting to prevent overwrite."
@@ -56,6 +63,7 @@ if [[ -f "$DB_CONNECT_FILE" ]]; then
 fi
 
 # Create db_connect.php
+echo "📝 Creating db_connect.php file at $DB_CONNECT_FILE..."
 cat <<EOF > "$DB_CONNECT_FILE"
 <?php
 \$db_host = '$DB_HOST';
