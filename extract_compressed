@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Function to check valid compressed file type
+is_valid_file() {
+    case "$1" in
+        *.tar|*.tar.gz|*.zip|*.bz2|*.gz) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# List compressed files in current directory
+echo "Compressed files in current directory:"
+ls *.tar *.tar.gz *.zip *.bz2 *.gz 2>/dev/null || echo "No valid compressed files found."
+
+echo "Enter the directory where the backup is stored: "
+read backup_dir
+
+if [ ! -d "$backup_dir" ]; then
+    echo "Directory does not exist! Exiting."
+    exit 1
+fi
+
+# List valid compressed files in the provided directory
+echo "Compressed files in $backup_dir:"
+valid_files=$(ls "$backup_dir"/*.{tar,tar.gz,zip,bz2,gz} 2>/dev/null)
+
+if [ -z "$valid_files" ]; then
+    echo "No valid compressed files found! Exiting."
+    exit 1
+fi
+
+echo "$valid_files"
+echo "Enter the full path of the file to extract: "
+read file_path
+
+if ! is_valid_file "$file_path"; then
+    echo "Invalid file type! Please select a valid backup file."
+    exit 1
+fi
+
+echo "Where do you want to extract the data?"
+echo "1) Same directory (WARNING: Existing files may be overwritten)"
+echo "2) New folder (extracted_filename_without_extension)"
+read -p "Enter your choice (1 or 2): " choice
+
+extract_dir=$(dirname "$file_path")
+file_name=$(basename -- "$file_path")
+folder_name="${file_name%.*}"
+
+if [ "$choice" -eq 1 ]; then
+    read -p "This may overwrite existing files. Do you want to continue? (yes/no): " confirm
+    if [ "$confirm" != "yes" ]; then
+        echo "Extraction cancelled."
+        exit 0
+    fi
+elif [ "$choice" -eq 2 ]; then
+    extract_dir="$extract_dir/$folder_name"
+    mkdir -p "$extract_dir"
+else
+    echo "Invalid choice! Exiting."
+    exit 1
+fi
+
+# Extracting based on file type
+case "$file_path" in
+    *.tar) tar -xf "$file_path" -C "$extract_dir" ;;
+    *.tar.gz) tar -xzf "$file_path" -C "$extract_dir" ;;
+    *.zip) unzip "$file_path" -d "$extract_dir" ;;
+    *.bz2) bunzip2 -k "$file_path" -c > "$extract_dir/${file_name%.*}" ;;
+    *.gz) gunzip -k "$file_path" -c > "$extract_dir/${file_name%.*}" ;;
+    *) echo "Unsupported file format!"; exit 1 ;;
+esac
+
+echo "Extraction completed in $extract_dir"
