@@ -1,23 +1,18 @@
 #!/bin/bash
 
-# Check if user is root
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root!"
-   exit 1
-fi
-
-# Function to display active ports
+# Function to list open and listening ports
 list_ports() {
     echo "Scanning for open and listening ports..."
     echo "=========================================="
-    netstat -tulnp 2>/dev/null | awk '$4 ~ /:/ {print $4, $1, $7}' | sed 's/.*://'
-    echo "=========================================="
-}
+    
+    if command -v ss &>/dev/null; then
+        ss -tuln | awk '{print $1, $4}' | grep -E "LISTEN|ESTAB" | sed 's/.*://'
+    elif command -v netstat &>/dev/null; then
+        netstat -tuln | awk '{print $1, $4}' | sed 's/.*://'
+    else
+        echo "Neither ss nor netstat found. Install net-tools."
+    fi
 
-# Function to scan all ports using netstat
-scan_ports() {
-    echo "Scanning ports using netstat..."
-    netstat -tulnp 2>/dev/null
     echo "=========================================="
 }
 
@@ -36,31 +31,29 @@ test_port() {
     fi
 }
 
-# Function to check all open, closed, listening ports using lsof
+# Function to perform an advanced scan (non-root)
 advanced_scan() {
-    echo "Performing an advanced scan using lsof..."
-    lsof -i -P -n | grep LISTEN
+    echo "Performing an advanced scan..."
+    lsof -i -P -n 2>/dev/null | grep LISTEN || echo "No listening ports found."
     echo "=========================================="
 }
 
 # Menu-driven options
 while true; do
-    echo -e "\n========= PORT SCANNER & TESTER ========="
+    echo -e "\n========= NON-ROOT PORT SCANNER ========="
     echo "1. List open and listening ports"
-    echo "2. Scan all ports"
-    echo "3. Test a specific port"
-    echo "4. Perform an advanced scan (lsof)"
-    echo "5. Exit"
+    echo "2. Test a specific port"
+    echo "3. Perform an advanced scan (lsof)"
+    echo "4. Exit"
     echo "=========================================="
     
     read -p "Choose an option: " choice
 
     case $choice in
         1) list_ports ;;
-        2) scan_ports ;;
-        3) test_port ;;
-        4) advanced_scan ;;
-        5) echo "Exiting..."; exit 0 ;;
+        2) test_port ;;
+        3) advanced_scan ;;
+        4) echo "Exiting..."; exit 0 ;;
         *) echo "Invalid option. Please try again." ;;
     esac
 done
