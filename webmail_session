@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Get the current time in epoch format
+TIME_EPOCH=$(date +%s)
+
+# Create a full access session token
+TOKEN_RESPONSE=$(uapi Tokens create_full_access name='email' expires_at=$TIME_EPOCH --output=json)
+
+# Extract the token value
+TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.result.data.token')
+if [[ -z "$TOKEN" ]]; then
+    echo "Failed to retrieve token. Exiting."
+    exit 1
+fi
+
+# Get hostname
+HOSTNAME=$(hostname)
+
+# Generate a strong password
+PASSWORD=$(openssl rand -base64 12)
+
+# Ask for domain input
+read -p "Enter domain name: " DOMAIN
+if [[ -z "$DOMAIN" ]]; then
+    echo "Domain name cannot be empty. Exiting."
+    exit 1
+fi
+
+# Get current user
+USERNAME=$(whoami)
+
+# Create email account
+EMAIL_RESPONSE=$(curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
+    "https://$HOSTNAME:2083/execute/Email/add_pop?email=techsupport&password=$PASSWORD&domain=$DOMAIN")
+
+# Create webmail session
+SESSION_RESPONSE=$(uapi Session create_webmail_session_for_mail_user_check_password \
+    login='techsupport' domain="$DOMAIN" password="$PASSWORD" remote_address=$(hostname -i) --output=json)
+
+# Extract session URL and cpsess ID
+SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.result.data.url')
+CPSESS_ID=$(echo "$SESSION_URL" | grep -oP 'cpsess\d+')
+
+if [[ -z "$SESSION_URL" || -z "$CPSESS_ID" ]]; then
+    echo "Failed to retrieve session details. Exiting."
+    exit 1
+fi
+
+# Print the webmail login link
+LOGIN_LINK="https://$HOSTNAME:2096/$CPSESS_ID/login/?locale=en&session=techsupport@$DOMAIN:login/?locale=en&session=$SESSION_URL"
+echo "Webmail login link: $LOGIN_LINK"
