@@ -1,51 +1,59 @@
 #!/bin/bash
 
-# Get the current time in epoch format
-TIME_EPOCH=$(date +%s)
+# Get expiration time for 1 day from now
+EXPIRE_TIME=$(date -d "1 day" +%s)
 
-# Create a full access session token
-TOKEN_RESPONSE=$(uapi Tokens create_full_access name='email' expires_at=$TIME_EPOCH --output=json)
+# Create a full access API token
+TOKEN_RESPONSE=$(uapi Tokens create_full_access name='tempemail' expires_at=$EXPIRE_TIME --output=json)
 
-# Extract the token value
+# Extract token value from the response
 TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.result.data.token')
-if [[ -z "$TOKEN" ]]; then
-    echo "Failed to retrieve token. Exiting."
+
+# Ensure token is retrieved
+if [ -z "$TOKEN" ]; then
+    echo "Error: Failed to generate API token."
     exit 1
 fi
 
-# Get hostname
+# Get hostname and username
 HOSTNAME=$(hostname)
+USERNAME=$(whoami)
+
+# Prompt for the domain name
+read -p "Enter the domain name: " DOMAIN
 
 # Generate a strong password
 PASSWORD=$(openssl rand -base64 12)
 
-# Ask for domain input
-read -p "Enter domain name: " DOMAIN
-if [[ -z "$DOMAIN" ]]; then
-    echo "Domain name cannot be empty. Exiting."
+# Email account details
+EMAIL_USER="techsupport"
+
+# Create email account using cPanel API
+EMAIL_RESPONSE=$(curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
+"https://$HOSTNAME:2083/execute/Email/add_pop?email=$EMAIL_USER&password=$PASSWORD&domain=$DOMAIN")
+
+# Check if email creation was successful
+if ! echo "$EMAIL_RESPONSE" | grep -q '"status":1'; then
+    echo "Error: Failed to create email account."
     exit 1
 fi
 
-# Get current user
-USERNAME=$(whoami)
-
-# Create email account
-EMAIL_RESPONSE=$(curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
-    "https://$HOSTNAME:2083/execute/Email/add_pop?email=techsupport&password=$PASSWORD&domain=$DOMAIN")
+# Get the machine IP
+IP_ADDRESS=$(hostname -i)
 
 # Create webmail session
 SESSION_RESPONSE=$(uapi Session create_webmail_session_for_mail_user_check_password \
-    login='techsupport' domain="$DOMAIN" password="$PASSWORD" remote_address=$(hostname -i) --output=json)
+login="$EMAIL_USER" domain="$DOMAIN" password="$PASSWORD" remote_address="$IP_ADDRESS" --output=json)
 
-# Extract session URL and cpsess ID
-SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.result.data.url')
-CPSESS_ID=$(echo "$SESSION_URL" | grep -oP 'cpsess\d+')
+# Extract session and token values
+SESSION=$(echo "$SESSION_RESPONSE" | jq -r '.result.data.session')
+WEBMAIL_TOKEN=$(echo "$SESSION_RESPONSE" | jq -r '.result.data.token')
 
-if [[ -z "$SESSION_URL" || -z "$CPSESS_ID" ]]; then
-    echo "Failed to retrieve session details. Exiting."
+# Ensure session values are retrieved
+if [ -z "$SESSION" ] || [ -z "$WEBMAIL_TOKEN" ]; then
+    echo "Error: Failed to generate webmail session."
     exit 1
 fi
 
-# Print the webmail login link
-LOGIN_LINK="https://$HOSTNAME:2096/$CPSESS_ID/login/?locale=en&session=techsupport@$DOMAIN:login/?locale=en&session=$SESSION_URL"
-echo "Webmail login link: $LOGIN_LINK"
+# Display only the webmail login link to the user
+echo "Your webmail login link: https://$HOSTNAME:2096$WEBMAIL_TOKEN/login/?locale=en&session=$SESSION"
