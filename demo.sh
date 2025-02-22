@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Header of the table with fixed column width
+printf "%-30s %-15s %-50s %-15s\n" "Domain" "Type" "Documentroot" "Userdirprotect"
+echo "-----------------------------------------------------------------------------------------------"
+
+# Command to get the data
+output=$(uapi DomainInfo domains_data)
+
+# Extract the values
+domain=$(echo "$output" | grep -i "domain" | awk '{print $2}')
+type=$(echo "$output" | grep -i "type" | awk '{print $2}')
+documentroot=$(echo "$output" | grep -i "documentroot" | awk '{print $2}')
+userdirprotect=$(echo "$output" | grep -i "userdirprotect" | awk '{print $2}')
+
+# Output the values in structured table format with controlled width for each column
+printf "%-30s %-15s %-50s %-15s\n" "$domain" "$type" "$documentroot" "$userdirprotect"
