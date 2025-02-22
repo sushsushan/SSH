@@ -6,8 +6,8 @@ EXPIRE_TIME=$(date -d "1 day" +%s)
 # Create a full access API token
 TOKEN_RESPONSE=$(uapi Tokens create_full_access name='tempemail' expires_at=$EXPIRE_TIME --output=json)
 
-# Extract token value from the response
-TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.result.data.token')
+# Extract token value using grep and awk
+TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"token": *"[^"]*' | awk -F'"' '{print $4}')
 
 # Ensure token is retrieved
 if [ -z "$TOKEN" ]; then
@@ -45,9 +45,9 @@ IP_ADDRESS=$(hostname -i)
 SESSION_RESPONSE=$(uapi Session create_webmail_session_for_mail_user_check_password \
 login="$EMAIL_USER" domain="$DOMAIN" password="$PASSWORD" remote_address="$IP_ADDRESS" --output=json)
 
-# Extract session and token values
-SESSION=$(echo "$SESSION_RESPONSE" | jq -r '.result.data.session')
-WEBMAIL_TOKEN=$(echo "$SESSION_RESPONSE" | jq -r '.result.data.token')
+# Extract session and token values using grep and awk
+SESSION=$(echo "$SESSION_RESPONSE" | grep -o '"session": *"[^"]*' | awk -F'"' '{print $4}')
+WEBMAIL_TOKEN=$(echo "$SESSION_RESPONSE" | grep -o '"token": *"[^"]*' | awk -F'"' '{print $4}')
 
 # Ensure session values are retrieved
 if [ -z "$SESSION" ] || [ -z "$WEBMAIL_TOKEN" ]; then
