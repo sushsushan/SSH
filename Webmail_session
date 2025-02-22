@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Generate a unique token name using timestamp
+TOKEN_NAME="tempemail_$(date +%s)"
+
+# Get expiration time (1 day from now)
+EXPIRE_TIME=$(date -d "1 day" +%s)
+
+# Create a full-access API token
+TOKEN_RESPONSE=$(uapi Tokens create_full_access name="$TOKEN_NAME" expires_at=$EXPIRE_TIME --output=json)
+
+# Extract token value
+TOKEN=$(echo "$TOKEN_RESPONSE" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')
+
+# Ensure token is retrieved
+if [ -z "$TOKEN" ]; then
+    echo "Error: Failed to generate API token."
+    exit 1
+fi
+
+# Get hostname and username
+HOSTNAME=$(hostname)
+USERNAME=$(whoami)
+
+# Prompt user for domain name
+read -p "Enter the domain name: " DOMAIN
+
+# Generate a strong password
+PASSWORD=$(openssl rand -base64 12)
+
+# Email account details
+EMAIL_USER="techsupport"
+
+# Create email account using cPanel API
+EMAIL_RESPONSE=$(curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
+"https://$HOSTNAME:2083/execute/Email/add_pop?email=$EMAIL_USER&password=$PASSWORD&domain=$DOMAIN")
+
+# Check if email creation was successful
+if ! echo "$EMAIL_RESPONSE" | grep -q '"status":1'; then
+    echo "Error: Failed to create email account."
+    exit 1
+fi
+
+# Get the machine IP
+IP_ADDRESS=$(hostname -i)
+
+# Create webmail session
+SESSION_RESPONSE=$(uapi Session create_webmail_session_for_mail_user_check_password \
+login="$EMAIL_USER" domain="$DOMAIN" password="$PASSWORD" remote_address="$IP_ADDRESS" --output=json)
+
+# Extract session and token values
+SESSION=$(echo "$SESSION_RESPONSE" | sed -n 's/.*"session": *"\([^"]*\)".*/\1/p')
+WEBMAIL_TOKEN=$(echo "$SESSION_RESPONSE" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')
+
+# Ensure session values are retrieved
+if [ -z "$SESSION" ] || [ -z "$WEBMAIL_TOKEN" ]; then
+    echo "Error: Failed to generate webmail session."
+    exit 1
+fi
+
+# Revoke the API token to prevent reuse
+uapi Tokens revoke name="$TOKEN_NAME"
+
+# Display only the webmail login link to the user
+echo "Your webmail login link: https://$HOSTNAME:2096$WEBMAIL_TOKEN/login/?locale=en&session=$SESSION"
