@@ -1,10 +1,13 @@
 #!/bin/bash
 
+# Generate a unique token name using timestamp
+TOKEN_NAME="tempemail_$(date +%Y%m%d%H%M%S)"
+
 # Get expiration time for 1 day from now
 EXPIRE_TIME=$(date -d "1 day" +%s)
 
 # Create a full access API token
-TOKEN_RESPONSE=$(uapi Tokens create_full_access name='tempemail' expires_at=$EXPIRE_TIME --output=json)
+TOKEN_RESPONSE=$(uapi Tokens create_full_access name="$TOKEN_NAME" expires_at="$EXPIRE_TIME" --output=json)
 
 # Extract token value using grep and awk
 TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"token": *"[^"]*' | awk -F'"' '{print $4}')
@@ -45,7 +48,7 @@ IP_ADDRESS=$(hostname -i)
 SESSION_RESPONSE=$(uapi Session create_webmail_session_for_mail_user_check_password \
 login="$EMAIL_USER" domain="$DOMAIN" password="$PASSWORD" remote_address="$IP_ADDRESS" --output=json)
 
-# Extract session and token values using grep and awk
+# Extract session and token values
 SESSION=$(echo "$SESSION_RESPONSE" | grep -o '"session": *"[^"]*' | awk -F'"' '{print $4}')
 WEBMAIL_TOKEN=$(echo "$SESSION_RESPONSE" | grep -o '"token": *"[^"]*' | awk -F'"' '{print $4}')
 
@@ -57,3 +60,6 @@ fi
 
 # Display only the webmail login link to the user
 echo "Your webmail login link: https://$HOSTNAME:2096$WEBMAIL_TOKEN/login/?locale=en&session=$SESSION"
+
+# Schedule token revocation after 1 hour
+echo "uapi Tokens revoke name='$TOKEN_NAME'" | at now + 1 hour
