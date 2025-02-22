@@ -46,6 +46,12 @@ type=""
 documentroot=""
 userdirprotect=""
 
+# Initialize counters
+addon_domains=0
+sub_domains=0
+main_domains=0
+parked_domains=0
+
 # Loop to read the output and parse relevant data
 while read -r line; do
     if [[ "$line" =~ domain: ]]; then
@@ -65,6 +71,17 @@ while read -r line; do
         documentroot_list+="$documentroot "
         userdirprotect_list+="$userdirprotect "
 
+        # Count the domain types
+        if [[ "$type" == "addon_domain" ]]; then
+            addon_domains=$((addon_domains + 1))
+        elif [[ "$type" == "sub_domain" ]]; then
+            sub_domains=$((sub_domains + 1))
+        elif [[ "$type" == "main_domain" ]]; then
+            main_domains=$((main_domains + 1))
+        elif [[ "$type" == "parked_domain" ]]; then
+            parked_domains=$((parked_domains + 1))
+        fi
+
         # Reset the variables for the next domain entry
         domain=""
         type=""
@@ -73,7 +90,7 @@ while read -r line; do
     fi
 done <<< "$output"
 
-# Get the number of domains
+# Get the total number of domains
 count=$(echo "$domain_list" | wc -w)
 
 # Check if any data was found
@@ -98,13 +115,7 @@ echo "---------------------------------------------------------------"
 echo -e "\n\033[1mDomain Count Summary\033[0m"
 echo "---------------------------------------------------------------"
 
-# Count the different types of domains
-addon_domains=$(echo "$type_list" | grep -o "addon_domain" | wc -l)
-sub_domains=$(echo "$type_list" | grep -o "sub_domain" | wc -l)
-main_domains=$(echo "$type_list" | grep -o "main_domain" | wc -l)
-parked_domains=$(echo "$type_list" | grep -o "parked_domain" | wc -l)
-
-# Print the summary
+# Print the domain count summary
 echo "Total Domains: $count"
 echo "Total Addon Domains: $addon_domains"
 echo "Total Subdomains: $sub_domains"
