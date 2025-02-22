@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# Header of the table with a clear format
+echo -e "\n\033[1mDomain Information Report\033[0m"
+echo "---------------------------------------------------------------"
+printf "%-40s %-15s %-80s %-25s\n" "Domain" "Type" "Documentroot" "Userdirprotect"
+echo "---------------------------------------------------------------"
+
+# Command to get the data
+output=$(uapi DomainInfo domains_data)
+
+# Check if output is empty
+if [[ -z "$output" ]]; then
+    echo "No data returned by uapi DomainInfo domains_data. Please check the uAPI command or permissions."
+    exit 1
+fi
+
+# Initialize variables to hold the values
+domain_list=""
+type_list=""
+documentroot_list=""
+userdirprotect_list=""
+
+# Loop through the output and extract relevant fields for each domain
+domain=""
+type=""
+documentroot=""
+userdirprotect=""
+
+# Loop to read the output and parse relevant data
+while read -r line; do
+    if [[ "$line" =~ domain: ]]; then
+        domain=$(echo "$line" | awk '{print $2}')
+    elif [[ "$line" =~ type: ]]; then
+        type=$(echo "$line" | awk '{print $2}')
+    elif [[ "$line" =~ documentroot: ]]; then
+        documentroot=$(echo "$line" | cut -d' ' -f2-)
+    elif [[ "$line" =~ userdirprotect: ]]; then
+        userdirprotect=$(echo "$line" | awk '{print $2}')
+    fi
+
+    # When all fields are captured, store them and reset
+    if [[ -n "$domain" && -n "$type" && -n "$documentroot" && -n "$userdirprotect" ]]; then
+        domain_list+="$domain "
+        type_list+="$type "
+        documentroot_list+="$documentroot "
+        userdirprotect_list+="$userdirprotect "
+
+        # Reset the variables for the next domain entry
+        domain=""
+        type=""
+        documentroot=""
+        userdirprotect=""
+    fi
+done <<< "$output"
+
+# Debug: Print extracted values to see if they're correct
+# echo "Extracted Data:"
+# echo "Domain list: $domain_list"
+# echo "Type list: $type_list"
+# echo "Documentroot list: $documentroot_list"
+# echo "Userdirprotect list: $userdirprotect_list"
+
+# Get the number of domains
+count=$(echo "$domain_list" | wc -w)
+
+# Check if any data was found
+if [ "$count" -eq 0 ]; then
+    echo "No valid domain data extracted."
+    exit 1
+fi
+
+# Print the data in a table format
+for i in $(seq 1 $count); do
+  domain=$(echo "$domain_list" | cut -d' ' -f$i)
+  type=$(echo "$type_list" | cut -d' ' -f$i)
+  documentroot=$(echo "$documentroot_list" | cut -d' ' -f$i)
+  userdirprotect=$(echo "$userdirprotect_list" | cut -d' ' -f$i)
+  
+  # Print each record formatted
+  printf "%-40s %-15s %-80s %-25s\n" "$domain" "$type" "$documentroot" "$userdirprotect"
+done
+
+# Footer with line and domain count
+echo "---------------------------------------------------------------"
+echo -e "\n\033[1mDomain Count Summary\033[0m"
+echo "---------------------------------------------------------------"
+
+# Count the different types of domains
+addon_domains=$(echo "$type_list" | grep -o "addon_domain" | wc -l)
+sub_domains=$(echo "$type_list" | grep -o "sub_domain" | wc -l)
+main_domains=$(echo "$type_list" | grep -o "main_domain" | wc -l)
+
+# Print the summary
+echo "Total Domains: $count"
+echo "Total Addon Domains: $addon_domains"
+echo "Total Subdomains: $sub_domains"
+echo "Total Main Domains: $main_domains"
+echo "---------------------------------------------------------------"
