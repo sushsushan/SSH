@@ -30,9 +30,12 @@ while IFS= read -r line; do
         # Extract domain name
         domain=$(echo "$line" | awk '{print $2}')
     elif [[ $line == proxy_subdomains:* ]]; then
-        # Extract proxy subdomains and format them
-        proxy_subdomains=$(echo "$line" | sed 's/proxy_subdomains://;s/^\s*//;s/\s*$//')
-        proxy_subdomains=$(echo "$proxy_subdomains" | tr -d '\n' | sed 's/- / /g')
+        # Start collecting proxy subdomains
+        proxy_subdomains=""
+    elif [[ $line == *"- "* ]]; then
+        # Append each subdomain to the list
+        subdomain=$(echo "$line" | sed 's/- //')
+        proxy_subdomains="$proxy_subdomains $subdomain"
     elif [[ $line == vhost_is_ssl:* ]]; then
         # Extract SSL status
         vhost_is_ssl=$(echo "$line" | awk '{print $2}')
