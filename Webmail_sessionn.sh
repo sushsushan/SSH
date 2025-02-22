@@ -25,11 +25,14 @@ USERNAME=$(whoami)
 # Prompt user for domain name
 read -p "Enter the domain name: " DOMAIN
 
-# Generate a strong password
-PASSWORD=$(openssl rand -base64 12)
+# Generate a unique 4-digit number
+RANDOM_SUFFIX=$((1000 + RANDOM % 9000))
 
-# Email account details
-EMAIL_USER="techsupport"
+# Generate a strong 16-character password
+PASSWORD=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9!@#$%^&*()-_=+' | head -c 16)
+
+# Generate a unique email address
+EMAIL_USER="techsupport$RANDOM_SUFFIX"
 
 # Create email account using cPanel API
 EMAIL_RESPONSE=$(curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
@@ -61,5 +64,6 @@ fi
 # Revoke the API token to prevent reuse
 uapi Tokens revoke name="$TOKEN_NAME"
 
-# Display only the webmail login link to the user
-echo "Your webmail login link: https://$HOSTNAME:2096$WEBMAIL_TOKEN/login/?locale=en&session=$SESSION"
+# Display the generated email and webmail login link
+echo "✅ Email Created: $EMAIL_USER@$DOMAIN"
+echo "🔗 Webmail Login: https://$HOSTNAME:2096$WEBMAIL_TOKEN/login/?locale=en&session=$SESSION"
