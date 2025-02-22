@@ -1,29 +1,38 @@
 #!/bin/bash
 
-# Running uapi WebVhosts list_domains command and capturing output
+# Run the uapi command and capture the output
 output=$(uapi WebVhosts list_domains)
+
+# Debugging: Show the raw output of the uapi command
+echo "Raw output of uapi WebVhosts list_domains:"
+echo "$output"
+echo "------------------------"
 
 # Header for the CSV output
 echo "domain,proxy_subdomain,vhost_is_ssl,vhost_name"
 
-# Loop through the output and format it into CSV-like structure
+# Initialize variables
 domain=""
 proxy_subdomains=""
 vhost_is_ssl=""
 vhost_name=""
 
+# Loop through each line of the output
 while IFS= read -r line; do
+    # Debugging: Show each line being processed
+    echo "Processing line: $line"
+
     if [[ $line == domain:* ]]; then
+        # Print the previous record (if any)
         if [[ -n $domain ]]; then
-            # Print the previous record in CSV format
             echo "$domain,\"$proxy_subdomains\",$vhost_is_ssl,$vhost_name"
         fi
         # Extract domain name
         domain=$(echo "$line" | awk '{print $2}')
     elif [[ $line == proxy_subdomains:* ]]; then
-        # Extract proxy subdomains, remove leading and trailing spaces
+        # Extract proxy subdomains and format them
         proxy_subdomains=$(echo "$line" | sed 's/proxy_subdomains://;s/^\s*//;s/\s*$//')
-        proxy_subdomains=$(echo "$proxy_subdomains" | tr -d '\n' | sed 's/- / /g')  # Format subdomains into a single string
+        proxy_subdomains=$(echo "$proxy_subdomains" | tr -d '\n' | sed 's/- / /g')
     elif [[ $line == vhost_is_ssl:* ]]; then
         # Extract SSL status
         vhost_is_ssl=$(echo "$line" | awk '{print $2}')
@@ -33,7 +42,7 @@ while IFS= read -r line; do
     fi
 done <<< "$output"
 
-# Make sure to print the last record after the loop
+# Ensure the last record is printed
 if [[ -n $domain ]]; then
     echo "$domain,\"$proxy_subdomains\",$vhost_is_ssl,$vhost_name"
 fi
