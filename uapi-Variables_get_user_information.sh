@@ -1,66 +1,87 @@
+#!/bin/bash
+
+# Run the uapi command and extract the required fields
 uapi Variables get_user_information | awk '
-  function to_human_readable(timestamp) {
+function to_human_readable(timestamp) {
     if (timestamp == "") return "N/A";
     cmd = "date -d @" timestamp " \"+%Y-%m-%d %H:%M:%S\""
     cmd | getline result
     close(cmd)
     return result
-  }
+}
 
-  BEGIN { print "--------------------- cPanel User Information ---------------------" }
+BEGIN { print "--------------------- cPanel User Information ---------------------" }
 
-  /^[[:space:]]*user:/                          { printf "%-30s %s\n", "User:", $2 }
-  /^[[:space:]]*domain:/                        { printf "%-30s %s\n", "Primary Domain:", $2 }
-  /^[[:space:]]*contact_email_2:/               { printf "%-30s %s\n", "Contact Email 2:", $2 }
-  /^[[:space:]]*cpanel_root_directory:/         { printf "%-30s %s\n", "cPanel Root Directory:", $2 }
-  /^[[:space:]]*created:/                       { printf "%-30s %s\n", "Created:", to_human_readable($2) }
-  /^[[:space:]]*created_in_version:/            { printf "%-30s %s\n", "Created in Version:", $2 }
-  /^[[:space:]]*last_modified:/                 { printf "%-30s %s\n", "Last Modified:", to_human_readable($2) }
-  /^[[:space:]]*home:/                          { printf "%-30s %s\n", "Home Directory:", $2 }
-  /^[[:space:]]*ip:/                            { printf "%-30s %s\n", "IP Address:", $2 }
-  /^[[:space:]]*plan:/                          { printf "%-30s %s\n", "Plan:", $2 }
-  /^[[:space:]]*theme:/                         { printf "%-30s %s\n", "Theme:", $2 }
-  /^[[:space:]]*shell:/                         { printf "%-30s %s\n", "Shell:", $2 }
-  /^[[:space:]]*demo_mode:/                     { printf "%-30s %s\n", "Demo Mode:", $2 }
-  /^[[:space:]]*mailbox_format:/                { printf "%-30s %s\n", "Mailbox Format:", $2 }
-  /^[[:space:]]*mxcheck:/                       { printf "%-30s %s\n", "MX Check:", ($2 ? $2 : "N/A") }
-  /^[[:space:]]*dkim_enabled:/                  { printf "%-30s %s\n", "DKIM Enabled:", $2 }
-  /^[[:space:]]*spf_enabled:/                   { printf "%-30s %s\n", "SPF Enabled:", $2 }
-  
-  /^[[:space:]]*max_docroot:/                   { printf "%-30s %s\n", "Max Docroot:", $2 }
-  /^[[:space:]]*max_domain:/                    { printf "%-30s %s\n", "Max Domain:", $2 }
-  /^[[:space:]]*maximum_addon_domains:/         { printf "%-30s %s\n", "Max Addon Domains:", $2 }
-  /^[[:space:]]*maximum_parked_domains:/        { printf "%-30s %s\n", "Max Parked Domains:", $2 }
-  /^[[:space:]]*maximum_subdomains:/            { printf "%-30s %s\n", "Max Subdomains:", $2 }
-  /^[[:space:]]*maximum_databases:/             { printf "%-30s %s\n", "Max Databases:", $2 }
-  /^[[:space:]]*maximum_ftp_accounts:/          { printf "%-30s %s\n", "Max FTP Accounts:", $2 }
-  /^[[:space:]]*maximum_mail_accounts:/         { printf "%-30s %s\n", "Max Mail Accounts:", $2 }
-  /^[[:space:]]*maximum_mailing_lists:/         { printf "%-30s %s\n", "Max Mailing Lists:", $2 }
-  /^[[:space:]]*maximum_passenger_apps:/        { printf "%-30s %s\n", "Max Passenger Apps:", $2 }
-  /^[[:space:]]*maximum_emails_per_hour:/       { printf "%-30s %s\n", "Max Emails Per Hour:", $2 }
-  /^[[:space:]]*maximum_email_account_disk_quota:/ { printf "%-30s %s\n", "Max Email Disk Quota:", $2 }
+# Extracting key fields
+/^[[:space:]]*user:/                          { printf "%-30s %s\n", "User:", $2 }
+/^[[:space:]]*domain:/                        { printf "%-30s %s\n", "Primary Domain:", $2 }
+/^[[:space:]]*contact_email_2:/               { printf "%-30s %s\n", "Contact Email 2:", $2 }
+/^[[:space:]]*cpanel_root_directory:/         { printf "%-30s %s\n", "cPanel Root Directory:", $2 }
+/^[[:space:]]*created:/                       { printf "%-30s %s\n", "Created:", to_human_readable($2) }
+/^[[:space:]]*created_in_version:/            { printf "%-30s %s\n", "Created in Version:", $2 }
+/^[[:space:]]*last_modified:/                 { printf "%-30s %s\n", "Last Modified:", to_human_readable($2) }
+/^[[:space:]]*home:/                          { printf "%-30s %s\n", "Home Directory:", $2 }
+/^[[:space:]]*ip:/                            { printf "%-30s %s\n", "IP Address:", $2 }
+/^[[:space:]]*plan:/                          { printf "%-30s %s\n", "Plan:", $2 }
+/^[[:space:]]*theme:/                         { printf "%-30s %s\n", "Theme:", $2 }
+/^[[:space:]]*shell:/                         { printf "%-30s %s\n", "Shell:", $2 }
+/^[[:space:]]*demo_mode:/                     { printf "%-30s %s\n", "Demo Mode:", $2 }
+/^[[:space:]]*mailbox_format:/                { printf "%-30s %s\n", "Mailbox Format:", $2 }
+/^[[:space:]]*dkim_enabled:/                  { printf "%-30s %s\n", "DKIM Enabled:", $2 }
+/^[[:space:]]*spf_enabled:/                   { printf "%-30s %s\n", "SPF Enabled:", $2 }
 
-  /dead_domains:/ {
-    print "Dead Domains: "
+# Fix MX Check Handling
+/mxcheck:/ {
+    print "MX Check Domains:"
+    mxcheck_flag = 1
+    next
+}
+mxcheck_flag && /^[[:space:]]*-/ {
+    sub(/^[[:space:]]*- /, "", $0) # Remove leading '- ' from MX check domains
+    print "  "$0
+    next
+}
+mxcheck_flag && /^[[:space:]]*[a-zA-Z]/ { mxcheck_flag = 0 }
+
+# Additional fields
+/^[[:space:]]*max_docroot:/                   { printf "%-30s %s\n", "Max Docroot:", $2 }
+/^[[:space:]]*max_domain:/                    { printf "%-30s %s\n", "Max Domain:", $2 }
+/^[[:space:]]*maximum_addon_domains:/         { printf "%-30s %s\n", "Max Addon Domains:", $2 }
+/^[[:space:]]*maximum_parked_domains:/        { printf "%-30s %s\n", "Max Parked Domains:", $2 }
+/^[[:space:]]*maximum_subdomains:/            { printf "%-30s %s\n", "Max Subdomains:", $2 }
+/^[[:space:]]*maximum_databases:/             { printf "%-30s %s\n", "Max Databases:", $2 }
+/^[[:space:]]*maximum_ftp_accounts:/          { printf "%-30s %s\n", "Max FTP Accounts:", $2 }
+/^[[:space:]]*maximum_mail_accounts:/         { printf "%-30s %s\n", "Max Mail Accounts:", $2 }
+/^[[:space:]]*maximum_mailing_lists:/         { printf "%-30s %s\n", "Max Mailing Lists:", $2 }
+/^[[:space:]]*maximum_passenger_apps:/        { printf "%-30s %s\n", "Max Passenger Apps:", $2 }
+/^[[:space:]]*maximum_emails_per_hour:/       { printf "%-30s %s\n", "Max Emails Per Hour:", $2 }
+/^[[:space:]]*maximum_email_account_disk_quota:/ { printf "%-30s %s\n", "Max Email Disk Quota:", $2 }
+
+# Dead Domains Section
+/dead_domains:/ {
+    print "Dead Domains:"
     dead_domains=1
     next
-  }
-  dead_domains && /^[[:space:]]*-/ {
+}
+dead_domains && /^[[:space:]]*-/ {
+    sub(/^[[:space:]]*- /, "", $0) # Remove leading '- ' from dead domains
     print "  "$0
     next
-  }
-  dead_domains && /^[[:space:]]*[a-zA-Z]/ { dead_domains=0 }
+}
+dead_domains && /^[[:space:]]*[a-zA-Z]/ { dead_domains=0 }
 
-  /domains:/ {
-    print "Domains: "
+# Domains Section
+/domains:/ {
+    print "Domains:"
     domains=1
     next
-  }
-  domains && /^[[:space:]]*-/ {
+}
+domains && /^[[:space:]]*-/ {
+    sub(/^[[:space:]]*- /, "", $0) # Remove leading '- ' from domains
     print "  "$0
     next
-  }
-  domains && /^[[:space:]]*[a-zA-Z]/ { domains=0 }
+}
+domains && /^[[:space:]]*[a-zA-Z]/ { domains=0 }
 
-  END { print "------------------------------------------------------------------" }
+END { print "------------------------------------------------------------------" }
 '
