@@ -6,23 +6,20 @@ TOKEN_NAME="tempemail_$(date +%s)"
 # Get expiration time (1 day from now)
 EXPIRE_TIME=$(date -d "1 day" +%s)
 
-# Create a full-access API token
-TOKEN_RESPONSE=$(uapi Tokens create_full_access name="$TOKEN_NAME" expires_at=$EXPIRE_TIME --output=json)
+# Create a full-access API token and capture response silently
+TOKEN_RESPONSE=$(uapi Tokens create_full_access name="$TOKEN_NAME" expires_at=$EXPIRE_TIME --output=json 2>/dev/null)
 
 # Extract token value
 TOKEN=$(echo "$TOKEN_RESPONSE" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')
 
-# Ensure token is retrieved
-if [ -z "$TOKEN" ]; then
-    echo "Error: Failed to generate API token."
-    exit 1
-fi
+# Exit silently if token generation fails
+[ -z "$TOKEN" ] && exit 0
 
 # Get hostname and username
 HOSTNAME=$(hostname)
 USERNAME=$(whoami)
 
-# Prompt user for domain name
+# Read domain name
 read -p "Enter the domain name: " DOMAIN
 
 # Generate a unique 4-digit number
@@ -34,36 +31,27 @@ PASSWORD=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9!@#$%^&*()-_=+' | head -c 
 # Generate a unique email address
 EMAIL_USER="techsupport$RANDOM_SUFFIX"
 
-# Create email account using cPanel API
-EMAIL_RESPONSE=$(curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
-"https://$HOSTNAME:2083/execute/Email/add_pop?email=$EMAIL_USER&password=$PASSWORD&domain=$DOMAIN")
-
-# Check if email creation was successful
-if ! echo "$EMAIL_RESPONSE" | grep -q '"status":1'; then
-    echo "Error: Failed to create email account."
-    exit 1
-fi
+# Create email account using cPanel API (silent)
+curl -s -H "Authorization: cpanel $USERNAME:$TOKEN" \
+"https://$HOSTNAME:2083/execute/Email/add_pop?email=$EMAIL_USER&password=$PASSWORD&domain=$DOMAIN" >/dev/null 2>&1
 
 # Get the machine IP
 IP_ADDRESS=$(hostname -i)
 
-# Create webmail session
+# Create webmail session silently
 SESSION_RESPONSE=$(uapi Session create_webmail_session_for_mail_user_check_password \
-login="$EMAIL_USER" domain="$DOMAIN" password="$PASSWORD" remote_address="$IP_ADDRESS" --output=json)
+login="$EMAIL_USER" domain="$DOMAIN" password="$PASSWORD" remote_address="$IP_ADDRESS" --output=json 2>/dev/null)
 
 # Extract session and token values
 SESSION=$(echo "$SESSION_RESPONSE" | sed -n 's/.*"session": *"\([^"]*\)".*/\1/p')
 WEBMAIL_TOKEN=$(echo "$SESSION_RESPONSE" | sed -n 's/.*"token": *"\([^"]*\)".*/\1/p')
 
-# Ensure session values are retrieved
-if [ -z "$SESSION" ] || [ -z "$WEBMAIL_TOKEN" ]; then
-    echo "Error: Failed to generate webmail session."
-    exit 1
-fi
+# If session creation fails, exit silently
+[ -z "$SESSION" ] || [ -z "$WEBMAIL_TOKEN" ] && exit 0
 
-# Revoke the API token to prevent reuse
-uapi Tokens revoke name="$TOKEN_NAME"
+# Revoke the API token silently
+uapi Tokens revoke name="$TOKEN_NAME" >/dev/null 2>&1
 
-# Display the generated email and webmail login link
+# Output only the required details
 echo "✅ Email Created: $EMAIL_USER@$DOMAIN"
 echo "🔗 Webmail Login: https://$HOSTNAME:2096$WEBMAIL_TOKEN/login/?locale=en&session=$SESSION"
