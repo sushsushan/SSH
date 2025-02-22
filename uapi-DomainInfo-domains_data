@@ -3,8 +3,6 @@
 # Header of the table with a clear format
 echo -e "\n\033[1mDomain Information Report\033[0m"
 echo "---------------------------------------------------------------"
-printf "%-40s %-15s %-80s %-25s\n" "Domain" "Type" "Documentroot" "Userdirprotect"
-echo "---------------------------------------------------------------"
 
 # Command to get the data
 output=$(uapi DomainInfo domains_data)
@@ -14,6 +12,27 @@ if [[ -z "$output" ]]; then
     echo "No data returned by uapi DomainInfo domains_data. Please check the uAPI command or permissions."
     exit 1
 fi
+
+# Extract main information
+ip=$(echo "$output" | grep -i "ip:" | cut -d' ' -f2)
+homedir=$(echo "$output" | grep -i "homedir:" | cut -d' ' -f2-)
+serveradmin=$(echo "$output" | grep -i "serveradmin:" | cut -d' ' -f2-)
+serveralias=$(echo "$output" | grep -i "serveralias:" | cut -d' ' -f2-)
+servername=$(echo "$output" | grep -i "servername:" | cut -d' ' -f2-)
+user=$(echo "$output" | grep -i "user:" | cut -d' ' -f2)
+
+# Print the main information
+echo "IP: $ip"
+echo "Homedir: $homedir"
+echo "serveradmin: $serveradmin"
+echo "serveralias: $serveralias"
+echo "servername: $servername"
+echo "user: $user"
+echo "---------------------------------------------------------------"
+
+# Header for the table with domain information
+printf "%-40s %-15s %-80s %-25s\n" "Domain" "Type" "Documentroot" "Userdirprotect"
+echo "---------------------------------------------------------------"
 
 # Initialize variables to hold the values
 domain_list=""
@@ -53,13 +72,6 @@ while read -r line; do
         userdirprotect=""
     fi
 done <<< "$output"
-
-# Debug: Print extracted values to see if they're correct
-# echo "Extracted Data:"
-# echo "Domain list: $domain_list"
-# echo "Type list: $type_list"
-# echo "Documentroot list: $documentroot_list"
-# echo "Userdirprotect list: $userdirprotect_list"
 
 # Get the number of domains
 count=$(echo "$domain_list" | wc -w)
