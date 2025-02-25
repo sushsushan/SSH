@@ -38,17 +38,20 @@ print_border
 
 # Print rows of the table
 for ((i=0; i<count; i++)); do
-    # Count domain types
-    case "${types[i]}" in
-        main) ((main_count++)) ;;
-        addon) ((addon_count++)) ;;
-        parked) ((parked_count++)) ;;
-        subdomain) ((subdomain_count++)) ;;
+    # Normalize domain type to lowercase and remove underscores
+    type_normalized=$(echo "${types[i]}" | tr '[:upper:]' '[:lower:]' | tr '_' '')
+
+    # Count domain types correctly
+    case "$type_normalized" in
+        main|maindomain) ((main_count++)) ;;
+        addon|addondomain) ((addon_count++)) ;;
+        parked|parkeddomain) ((parked_count++)) ;;
+        subdomain|sub_domain) ((subdomain_count++)) ;;
     esac
-    
+
     # Set row color based on type
     row_color=$NC
-    case "${types[i]}" in
+    case "$type_normalized" in
         main) row_color=$CYAN ;;
         addon) row_color=$YELLOW ;;
         parked) row_color=$RED ;;
