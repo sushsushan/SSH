@@ -18,54 +18,45 @@ if [[ -z "$output" ]]; then
     exit 1
 fi
 
-# Extract domain details using jq for better parsing
-domains=($(echo "$output" | jq -r '.result.data[] | .domain'))
-documentroots=($(echo "$output" | jq -r '.result.data[] | .documentroot'))
-types=($(echo "$output" | jq -r '.result.data[] | .type'))
+# Extract domain, documentroot, and type using grep, awk, and sed
+domains=($(echo "$output" | grep -oP '"domain"\s*:\s*"\K[^"]+'))
+documentroots=($(echo "$output" | grep -oP '"documentroot"\s*:\s*"\K[^"]+'))
+types=($(echo "$output" | grep -oP '"type"\s*:\s*"\K[^"]+'))
 
-# Check if jq successfully extracted data
+# Ensure valid data was extracted
 if [[ ${#domains[@]} -eq 0 ]]; then
     echo -e "${RED}Error: No domains found.${NC}"
     exit 1
 fi
 
-# Initialize counters
-main_count=0
-addon_count=0
-parked_count=0
-subdomain_count=0
-
-# Sort domains into categories
+# Initialize category arrays
 main_domains=()
 main_paths=()
-addon_domains=()
-addon_paths=()
 parked_domains=()
 parked_paths=()
+addon_domains=()
+addon_paths=()
 subdomains=()
 sub_paths=()
 
+# Categorize domains
 for ((i=0; i<${#domains[@]}; i++)); do
     case "${types[i]}" in
         main)
             main_domains+=("${domains[i]}")
             main_paths+=("${documentroots[i]}")
-            ((main_count++))
             ;;
         parked)
             parked_domains+=("${domains[i]}")
             parked_paths+=("${documentroots[i]}")
-            ((parked_count++))
             ;;
         addon)
             addon_domains+=("${domains[i]}")
             addon_paths+=("${documentroots[i]}")
-            ((addon_count++))
             ;;
         subdomain)
             subdomains+=("${domains[i]}")
             sub_paths+=("${documentroots[i]}")
-            ((subdomain_count++))
             ;;
     esac
 done
@@ -75,20 +66,18 @@ domain_width=50
 path_width=80
 type_width=20
 
-# Function to print a table border
-print_border() {
-    printf "${MAGENTA}+%-${domain_width}s+%-${path_width}s+%-${type_width}s+${NC}\n" \
-        "$(printf -- '-%.0s' $(seq 1 $domain_width))" \
-        "$(printf -- '-%.0s' $(seq 1 $path_width))" \
-        "$(printf -- '-%.0s' $(seq 1 $type_width))"
-}
+# Print table header
+printf "${MAGENTA}+%-${domain_width}s+%-${path_width}s+%-${type_width}s+\n" \
+    "$(printf -- '-%.0s' $(seq 1 $domain_width))" \
+    "$(printf -- '-%.0s' $(seq 1 $path_width))" \
+    "$(printf -- '-%.0s' $(seq 1 $type_width))"
+printf "| ${BLUE}%-${domain_width}s${MAGENTA} | ${YELLOW}%-${path_width}s${MAGENTA} | ${GREEN}%-${type_width}s${MAGENTA} |\n${NC}" "Domain Name" "Document Root/Path" "Type"
+printf "${MAGENTA}+%-${domain_width}s+%-${path_width}s+%-${type_width}s+\n" \
+    "$(printf -- '-%.0s' $(seq 1 $domain_width))" \
+    "$(printf -- '-%.0s' $(seq 1 $path_width))" \
+    "$(printf -- '-%.0s' $(seq 1 $type_width))"
 
-# Print header
-print_border
-printf "${MAGENTA}| ${BLUE}%-${domain_width}s${MAGENTA} | ${YELLOW}%-${path_width}s${MAGENTA} | ${GREEN}%-${type_width}s${MAGENTA} |\n${NC}" "Domain Name" "Document Root/Path" "Type"
-print_border
-
-# Function to print domain rows with colors
+# Function to print domains with color
 print_domains() {
     local color=$1
     local domain_list=("${!2}")
@@ -101,21 +90,24 @@ print_domains() {
     done
 }
 
-# Print domains in the specified order with colors
+# Print domains in correct order with colors
 print_domains "$CYAN" main_domains[@] main_paths[@] "Main"
 print_domains "$RED" parked_domains[@] parked_paths[@] "Parked"
 print_domains "$YELLOW" addon_domains[@] addon_paths[@] "Addon"
 print_domains "$GREEN" subdomains[@] sub_paths[@] "Subdomain"
 
 # Print bottom border
-print_border
+printf "${MAGENTA}+%-${domain_width}s+%-${path_width}s+%-${type_width}s+\n" \
+    "$(printf -- '-%.0s' $(seq 1 $domain_width))" \
+    "$(printf -- '-%.0s' $(seq 1 $path_width))" \
+    "$(printf -- '-%.0s' $(seq 1 $type_width))"
 
 # Print summary
-total_domains=$((main_count + addon_count + parked_count + subdomain_count))
+total_domains=$(( ${#main_domains[@]} + ${#addon_domains[@]} + ${#parked_domains[@]} + ${#subdomains[@]} ))
 
 echo -e "\n${CYAN}Summary:${NC}"
-printf "  ${BLUE}%-20s ${NC}%d\n" "Main Domains:" "$main_count"
-printf "  ${RED}%-20s ${NC}%d\n" "Parked Domains:" "$parked_count"
-printf "  ${YELLOW}%-20s ${NC}%d\n" "Addon Domains:" "$addon_count"
-printf "  ${GREEN}%-20s ${NC}%d\n" "Subdomains:" "$subdomain_count"
+printf "  ${BLUE}%-20s ${NC}%d\n" "Main Domains:" "${#main_domains[@]}"
+printf "  ${RED}%-20s ${NC}%d\n" "Parked Domains:" "${#parked_domains[@]}"
+printf "  ${YELLOW}%-20s ${NC}%d\n" "Addon Domains:" "${#addon_domains[@]}"
+printf "  ${GREEN}%-20s ${NC}%d\n" "Subdomains:" "${#subdomains[@]}"
 printf "  ${MAGENTA}%-20s ${NC}%d\n\n" "Total Domains:" "$total_domains"
