@@ -5,8 +5,9 @@ check_domain_reachability() {
   domain=$1
   echo "Checking domain reachability..."
   
-  # Using curl to check if the website is reachable
-  http_status=$(curl -Is "$domain" | head -n 1)
+  # Using curl with a custom User-Agent to avoid 403 errors
+  http_status=$(curl -Is "$domain" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" | head -n 1)
+  
   if [[ "$http_status" =~ "200 OK" ]]; then
     echo "$domain is reachable."
   else
