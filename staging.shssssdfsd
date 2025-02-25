@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# Function to generate a 4-digit random number
+generate_random_number() {
+    echo $((RANDOM % 9000 + 1000))
+}
+
+# Welcome message
+echo "=============================================="
+echo "  Welcome to the Advanced Staging Creton Tool "
+echo "=============================================="
+echo ""
+echo "Staging allows testing updates, plugins, and changes safely."
+echo ""
+
+# List all installed WordPress directories
+echo "Scanning for installed WordPress sites..."
+WP_DIRS=($(find ~ -type d -name "wp-admin" -exec dirname {} \; 2>/dev/null))
+
+if [[ ${#WP_DIRS[@]} -eq 0 ]]; then
+    echo "No WordPress installations found in your home directory."
+    exit 1
+fi
+
+echo "Found the following WordPress installations:"
+for i in "${!WP_DIRS[@]}"; do
+    echo "$((i+1)). ${WP_DIRS[$i]}"
+done
+
+# User selects WordPress installation
+read -p "Enter the number corresponding to your WordPress installation: " selection
+if ! [[ "$selection" =~ ^[0-9]+$ ]] || (( selection < 1 || selection > ${#WP_DIRS[@]} )); then
+    echo "Invalid selection. Exiting."
+    exit 1
+fi
+
+WP_PATH="${WP_DIRS[$((selection-1))]}"
+echo "You selected: $WP_PATH"
+
+# Confirm WordPress installation
+if [[ ! -f "$WP_PATH/wp-config.php" ]]; then
+    echo "Error: No WordPress installation detected in $WP_PATH"
+    exit 1
+fi
+
+# Extract database credentials from wp-config.php
+DB_NAME=$(grep -oP "(?<=DB_NAME', ').*?(?=')" "$WP_PATH/wp-config.php")
+DB_USER=$(grep -oP "(?<=DB_USER', ').*?(?=')" "$WP_PATH/wp-config.php")
+DB_PASS=$(grep -oP "(?<=DB_PASSWORD', ').*?(?=')" "$WP_PATH/wp-config.php")
+
+# Generate Staging Directory
+STAGING_DIR="$WP_PATH/staging"
+mkdir -p "$STAGING_DIR"
+
+RANDOM_ID=$(generate_random_number)
+STAGING_SUBDIR="$STAGING_DIR/$RANDOM_ID"
+mkdir "$STAGING_SUBDIR"
+
+# Copy WordPress files to Staging Directory
+echo "Copying files to the staging site..."
+rsync -av --exclude='staging' "$WP_PATH/" "$STAGING_SUBDIR/" --quiet
+
+# Database Backup Directory
+BACKUP_DIR=~/backup
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/${DB_NAME}_$(date +"%Y%m%d_%H%M%S").sql"
+
+# Take Database Backup
+echo "Creating database backup..."
+if command -v wp &>/dev/null && wp db export "$BACKUP_FILE" --path="$WP_PATH" --allow-root 2>/dev/null; then
+    echo "Database backup created using WP-CLI: $BACKUP_FILE"
+else
+    echo "WP-CLI failed. Falling back to mysqldump..."
+    TEMP_DB_USER="${DB_USER}_$(openssl rand -hex 4)"
+    TEMP_DB_PASS=$(openssl rand -base64 12)
+
+    # Create temporary MySQL user
+    uapi Mysql create_user name="$TEMP_DB_USER" password="$TEMP_DB_PASS" >/dev/null 2>&1
+    uapi Mysql set_privileges_on_database database="$DB_NAME" user="$TEMP_DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+    # Perform MySQL Dump
+    mysqldump -u "$TEMP_DB_USER" -p"$TEMP_DB_PASS" "$DB_NAME" > "$BACKUP_FILE" 2>/dev/null
+
+    # Remove Temporary User
+    uapi Mysql delete_user name="$TEMP_DB_USER" >/dev/null 2>&1
+    echo "Backup created via mysqldump: $BACKUP_FILE"
+fi
+
+# Create New Database and User
+HOST_USER=$(whoami)
+NEW_DB_NAME="staging_$(date +%s)"
+NEW_DB_USER="${HOST_USER}_${NEW_DB_NAME}"
+NEW_DB_PASS=$(openssl rand -base64 12)
+
+echo "Creating new staging database..."
+uapi Mysql create_database name="$NEW_DB_NAME" >/dev/null 2>&1
+uapi Mysql create_user name="$NEW_DB_USER" password="$NEW_DB_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$NEW_DB_NAME" user="$NEW_DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+echo "New Database Created: $NEW_DB_NAME"
+
+# Update wp-config.php for Staging
+echo "Updating wp-config.php for the staging site..."
+sed -i "s/define('DB_NAME',.*/define('DB_NAME', '$NEW_DB_NAME');/" "$STAGING_SUBDIR/wp-config.php"
+sed -i "s/define('DB_USER',.*/define('DB_USER', '$NEW_DB_USER');/" "$STAGING_SUBDIR/wp-config.php"
+sed -i "s/define('DB_PASSWORD',.*/define('DB_PASSWORD', '$NEW_DB_PASS');/" "$STAGING_SUBDIR/wp-config.php"
+
+# Import Database to Staging
+echo "Importing database backup into new staging database..."
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" < "$BACKUP_FILE" 2>/dev/null
+
+echo "======================================"
+echo "  ✅ Staging Site Created Successfully!"
+echo "======================================"
+echo "Path: $STAGING_SUBDIR"
+echo "WordPress Staging Installed at: $STAGING_SUBDIR"
+echo "======================================"
