@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Welcome Message
+echo "====================================="
+echo "      Welcome to DB Creation Tool    "
+echo "====================================="
+
+echo "Fetching available databases..."
+
+# Fetch existing databases (without displaying them to the user)
+EXISTING_DBS=$(uapi Mysql list_databases | grep -oP '(?<=database:\s).+')
+
+# Prompt User for DB Name Choice
+echo "Choose an option:"
+echo "1. Enter database name manually"
+echo "2. Use system-generated database name"
+read -p "Enter your choice (1/2): " CHOICE
+
+USERNAME=$(whoami)
+DB_NAME=""
+
+if [[ "$CHOICE" == "1" ]]; then
+    while true; do
+        read -p "Enter database name (only the second part after ${USERNAME}_): " USER_DB_NAME
+        DB_NAME="${USERNAME}_$USER_DB_NAME"
+        if echo "$EXISTING_DBS" | grep -q "^$DB_NAME$"; then
+            echo "[ERROR] Database '$DB_NAME' already exists. Please choose another name."
+        else
+            break
+        fi
+    done
+else
+    while true; do
+        RANDOM_SUFFIX=$(openssl rand -hex 4)
+        DB_NAME="${USERNAME}_$RANDOM_SUFFIX"
+        if ! echo "$EXISTING_DBS" | grep -q "^$DB_NAME$"; then
+            break
+        fi
+    done
+    echo "System-generated database name: $DB_NAME"
+fi
+
+# Create Database
+echo "Creating database '$DB_NAME'..."
+uapi Mysql create_database name="$DB_NAME" >/dev/null 2>&1
+
+# Generate User Credentials
+DB_USER="${USERNAME}_$(openssl rand -hex 4)"
+DB_PASS=$(openssl rand -base64 12)
+
+echo "Creating temporary database user..."
+uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+echo "Database '$DB_NAME' created successfully!"
+echo "---------------------------------------------"
+echo "Database User: $DB_USER"
+echo "Database Password: $DB_PASS"
+echo "---------------------------------------------"
+
+# Backup Directory Setup
+mkdir -p ~/backup
+BACKUP_FILE=~/backup/"$DB_NAME"_$(date +"%Y%m%d_%H%M%S").sql
+
+echo "Starting backup, please wait..."
+mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > "$BACKUP_FILE" 2>/dev/null
+
+# Delete Temporary Database User
+echo "Removing temporary database user..."
+uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
+
+# Display Backup Details
+BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+echo "Backup completed successfully."
+echo "---------------------------------------------"
+echo "Backup File: $BACKUP_FILE"
+echo "Backup Size: $BACKUP_SIZE"
+echo "---------------------------------------------"
+echo "Process completed! Have a great day!"
