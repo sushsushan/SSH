@@ -8,29 +8,33 @@ RED='\033[1;31m'
 YELLOW='\033[1;33m'
 RESET='\033[0m'
 
-# Log errors but don't show them to users
+# Log errors but hide them from the user
 ERROR_LOG="wpcli_errors.log"
-exec 2>>$ERROR_LOG
+exec 2>>"$ERROR_LOG"
 
-# Welcome Banner
+# Display Welcome Message
 echo -e "${GREEN}========================================${RESET}"
 echo -e "${BLUE}    🚀 Mega WordPress Info Tool 🚀     ${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 
-# Prompt for WordPress path
-read -p "Enter the full path to your WordPress installation: " WP_PATH
+# Prompt for the WordPress path
+read -rp "Enter the full path to your WordPress installation: " WP_PATH
 
 # Validate the path
-if [ -z "$WP_PATH" ] || [ ! -f "$WP_PATH/wp-config.php" ]; then
-    echo -e "${RED}⚠️ Invalid WordPress directory!${RESET}"
+if [[ -z "$WP_PATH" || ! -f "$WP_PATH/wp-config.php" ]]; then
+    echo -e "${RED}⚠️  Invalid WordPress directory!${RESET}"
     exit 1
 fi
 
 # Navigate to the WordPress directory
 cd "$WP_PATH" || exit
 
-# Start fetching details
-echo -e "${CYAN}Fetching WordPress details... Please wait!${RESET}"
+# Confirm directory change
+echo -e "${CYAN}Using WordPress installation at:${RESET} ${YELLOW}$WP_PATH${RESET}"
+echo ""
+
+# Fetch details
+echo -e "${GREEN}Fetching WordPress details...${RESET}"
 echo ""
 
 # Table Header
@@ -40,7 +44,7 @@ printf "%-25s %-50s\n" "-------------------------" "----------------------------
 # 🔹 WordPress Version
 printf "%-25s %-50s\n" "WordPress Version:" "$(wp core version --allow-root)"
 
-# 🔹 URLs
+# 🔹 Site URLs
 printf "%-25s %-50s\n" "Site URL:" "$(wp option get siteurl --allow-root)"
 printf "%-25s %-50s\n" "Home URL:" "$(wp option get home --allow-root)"
 
@@ -78,7 +82,7 @@ printf "%-25s %-50s\n" "Permalink Structure:" "$(wp option get permalink_structu
 
 # 🔹 WP Debug Mode
 DEBUG_MODE=$(wp config get WP_DEBUG --allow-root 2>/dev/null)
-if [ "$DEBUG_MODE" == "true" ]; then
+if [[ "$DEBUG_MODE" == "true" ]]; then
     printf "%-25s %-50s\n" "WP Debug Mode:" "Enabled"
 else
     printf "%-25s %-50s\n" "WP Debug Mode:" "Disabled"
