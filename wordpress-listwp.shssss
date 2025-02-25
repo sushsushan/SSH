@@ -21,13 +21,14 @@ if [[ -z "$WP_CONFIG_FILES" ]]; then
 fi
 
 # Print header
-echo -e "${BOLD}${GREEN}==========================================================================================================================================${RESET}"
-echo -e "${CYAN}${BOLD}                                  WordPress Installations Found on Your System${RESET}"
-echo -e "${BOLD}${GREEN}==========================================================================================================================================${RESET}"
+echo -e "${BOLD}${GREEN}================================================================================================================================================${RESET}"
+echo -e "${CYAN}${BOLD}                                    WordPress Installations Found on Your System${RESET}"
+echo -e "${BOLD}${GREEN}================================================================================================================================================${RESET}"
 
 # Print table header with fixed column widths
-printf "${BOLD}${YELLOW}%-4s | %-40s | %-35s | %-15s | %-15s | %-20s | %-10s${RESET}\n" "No." "Installation Path" "Site URL" "DB Name" "DB User" "DB Password" "Prefix"
-echo -e "${GREEN}------------------------------------------------------------------------------------------------------------------------------------------${RESET}"
+printf "${BOLD}${YELLOW}%-4s | %-40s | %-35s | %-35s | %-15s | %-15s | %-10s | %-10s${RESET}\n" \
+    "No." "Installation Path" "Site URL" "Home URL" "DB Name" "DB User" "Prefix" "Version"
+echo -e "${GREEN}------------------------------------------------------------------------------------------------------------------------------------------------${RESET}"
 
 # Initialize counter
 WP_COUNT=0
@@ -50,9 +51,11 @@ while IFS= read -r wp_config; do
     if command -v wp &>/dev/null; then
         SITE_URL=$(wp option get siteurl --path="$WP_PATH" --allow-root 2>/dev/null || echo "N/A")
         HOME_URL=$(wp option get home --path="$WP_PATH" --allow-root 2>/dev/null || echo "N/A")
+        WP_VERSION=$(wp core version --path="$WP_PATH" --allow-root 2>/dev/null || echo "N/A")
     else
         SITE_URL="WP-CLI not found"
         HOME_URL="WP-CLI not found"
+        WP_VERSION="WP-CLI not found"
     fi
 
     # Ensure values are not empty
@@ -62,14 +65,15 @@ while IFS= read -r wp_config; do
     [[ -z "$PREFIX" ]] && PREFIX="N/A"
     [[ -z "$SITE_URL" ]] && SITE_URL="N/A"
     [[ -z "$HOME_URL" ]] && HOME_URL="N/A"
+    [[ -z "$WP_VERSION" ]] && WP_VERSION="N/A"
 
     # Print data in table format
-    printf "${CYAN}%-4s ${RESET}| %-40s | %-35s | %-15s | %-15s | %-20s | %-10s\n" \
-        "$WP_COUNT" "$(echo $WP_PATH | cut -c1-40)" "$(echo $SITE_URL | cut -c1-35)" "$DB_NAME" "$DB_USER" "$(echo $DB_PASS | cut -c1-20)" "$PREFIX"
+    printf "${CYAN}%-4s ${RESET}| %-40s | %-35s | %-35s | %-15s | %-15s | %-10s | %-10s\n" \
+        "$WP_COUNT" "$(echo $WP_PATH | cut -c1-40)" "$(echo $SITE_URL | cut -c1-35)" "$(echo $HOME_URL | cut -c1-35)" "$DB_NAME" "$DB_USER" "$PREFIX" "$WP_VERSION"
 
 done <<< "$WP_CONFIG_FILES"
 
 # Print footer with total count
-echo -e "${GREEN}------------------------------------------------------------------------------------------------------------------------------------------${RESET}"
+echo -e "${GREEN}------------------------------------------------------------------------------------------------------------------------------------------------${RESET}"
 echo -e "${BOLD}${YELLOW}Total WordPress Installations Found: ${WP_COUNT}${RESET}"
-echo -e "${GREEN}==========================================================================================================================================${RESET}"
+echo -e "${GREEN}================================================================================================================================================${RESET}"
