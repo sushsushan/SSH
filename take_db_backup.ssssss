@@ -49,14 +49,15 @@ loading_animation() {
     done
 }
 
+# Store backup results if user selects option 1
+declare -A BACKUP_RESULTS
+
 # Function to back up a database
 backup_database() {
     local DB_NAME=$1
     local DB_USER="${USERNAME}_$(openssl rand -hex 4)"
     local DB_PASS=$(openssl rand -base64 12)
     local BACKUP_FILE="$BACKUP_DIR/${DB_NAME}_$(date +"%Y%m%d_%H%M%S").sql"
-
-    echo -e "${GREEN}Preparing backup for database: ${BOLD}${DB_NAME}${RESET}"
 
     # Create temporary database user
     uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
@@ -76,15 +77,22 @@ backup_database() {
     # Delete temporary database user
     uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
 
-    # Display backup details
+    # Get backup size
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-    echo -e "${BOLD}${GREEN}✔ Backup completed successfully!${RESET}"
-    echo -e "${CYAN}----------------------------------------${RESET}"
-    echo -e "${BOLD}📂 Backup File: ${RESET}${BLUE}$BACKUP_FILE${RESET}"
-    echo -e "${BOLD}📏 Backup Size: ${RESET}${YELLOW}$BACKUP_SIZE${RESET}"
-    echo -e "${BOLD}🛠 Temporary user removed${RESET}"
-    echo -e "${CYAN}----------------------------------------${RESET}"
-    echo ""
+
+    # Store results if backing up all databases
+    if [ "$DB_CHOICE" == "1" ]; then
+        BACKUP_RESULTS["$DB_NAME"]="$BACKUP_FILE ($BACKUP_SIZE)"
+    else
+        # Display details for single database backup
+        echo -e "${BOLD}${GREEN}✔ Backup completed successfully!${RESET}"
+        echo -e "${CYAN}----------------------------------------${RESET}"
+        echo -e "${BOLD}📂 Backup File: ${RESET}${BLUE}$BACKUP_FILE${RESET}"
+        echo -e "${BOLD}📏 Backup Size: ${RESET}${YELLOW}$BACKUP_SIZE${RESET}"
+        echo -e "${BOLD}🛠 Temporary user removed${RESET}"
+        echo -e "${CYAN}----------------------------------------${RESET}"
+        echo ""
+    fi
 }
 
 # Backup process based on user input
@@ -93,6 +101,16 @@ if [ "$DB_CHOICE" == "1" ]; then
     for DB_NAME in $DB_LIST; do
         backup_database "$DB_NAME"
     done
+
+    # Display summary at the end
+    echo -e "\n${BOLD}${GREEN}🎉 Backup process completed for all databases!${RESET}"
+    echo -e "${CYAN}----------------------------------------${RESET}"
+    printf "${BOLD}%-25s %-50s %-10s${RESET}\n" "Database Name" "Backup Path" "Size"
+    echo -e "${CYAN}----------------------------------------${RESET}"
+    for DB in "${!BACKUP_RESULTS[@]}"; do
+        printf "%-25s %-50s\n" "$DB" "${BACKUP_RESULTS[$DB]}"
+    done
+    echo -e "${CYAN}----------------------------------------${RESET}\n"
 else
     if echo "$DB_LIST" | grep -q "^$DB_CHOICE$"; then
         backup_database "$DB_CHOICE"
@@ -102,4 +120,4 @@ else
     fi
 fi
 
-echo -e "${BOLD}${GREEN}🎉 Backup process completed successfully!${RESET}"
+echo -e "${BOLD}${GREEN}✅ All backup operations completed successfully!${RESET}"
