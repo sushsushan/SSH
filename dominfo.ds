@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Colors for better visualization
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+NC='\033[0m' # No color
+
+# Run the uapi command to get domain details
+output=$(uapi DomainInfo domains_data)
+
+# Extract required fields using grep and awk
+domains=($(echo "$output" | grep -E "domain: " | awk '{print $2}'))
+documentroots=($(echo "$output" | grep -E "documentroot: " | awk '{print $2}'))
+types=($(echo "$output" | grep -E "type: " | awk '{print $2}'))
+
+# Calculate the number of domains found
+count=${#domains[@]}
+
+# Function to print a table border
+print_border() {
+    printf "+%-40s+%-60s+%-15s+\n" "$(printf -- '-%.0s' {1..40})" "$(printf -- '-%.0s' {1..60})" "$(printf -- '-%.0s' {1..15})"
+}
+
+# Print header with border
+print_border
+printf "| ${BLUE}%-40s${NC} | ${YELLOW}%-60s${NC} | ${GREEN}%-15s${NC} |\n" "Domain Name" "Document Root/Path" "Type"
+print_border
+
+# Print rows of the table
+for ((i=0; i<count; i++)); do
+    printf "| %-40s | %-60s | %-15s |\n" "${domains[i]}" "${documentroots[i]}" "${types[i]}"
+done
+
+# Print bottom border
+print_border
