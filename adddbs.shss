@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Color codes for better visibility
+# Define color codes for better readability
 RED="\e[31m"
 GREEN="\e[32m"
 YELLOW="\e[33m"
 BLUE="\e[34m"
+CYAN="\e[36m"
+WHITE="\e[97m"
 RESET="\e[0m"
 
 # Get the cPanel username
@@ -21,18 +23,32 @@ function database_exists() {
     fi
 }
 
-# Prompt user for database creation method
-echo -e "${BLUE}Database Creation Tool${RESET}"
-echo -e "${YELLOW}1) System-generated DB name${RESET}"
-echo -e "${YELLOW}2) Enter your own DB name${RESET}"
+# Function to print a formatted table
+function print_table() {
+    echo -e "${CYAN}------------------------------------------------------${RESET}"
+    printf "${WHITE}| %-20s | %-30s |\n" "Property" "Value"
+    echo -e "${CYAN}------------------------------------------------------${RESET}"
+    printf "${GREEN}| %-20s | %-30s |\n" "Database Name" "$FULL_DB_NAME"
+    printf "${GREEN}| %-20s | %-30s |\n" "Database User" "$DB_USER"
+    printf "${GREEN}| %-20s | %-30s |\n" "Password" "$DB_PASS"
+    echo -e "${CYAN}------------------------------------------------------${RESET}"
+}
+
+# Display options
+echo -e "${BLUE}======================================================"
+echo -e "            Database Creation Tool"
+echo -e "======================================================${RESET}"
+echo -e "${YELLOW}1) System-generated DB name"
+echo -e "2) Enter your own DB name${RESET}"
 read -p "Choose (1/2): " choice
 
+# Process user choice
 if [[ "$choice" == "1" ]]; then
     while true; do
         DB_NAME="db_$(date +%s)"
         FULL_DB_NAME="${HOST_USER}_${DB_NAME}"
         if database_exists "$FULL_DB_NAME"; then
-            echo -e "${RED}Generated database name already exists, trying again...${RESET}"
+            echo -e "${RED}Generated database name already exists, retrying...${RESET}"
             sleep 1
         else
             break
@@ -62,7 +78,7 @@ DB_USER="${HOST_USER}_${DB_NAME}"
 # Create the database
 echo -e "${GREEN}Creating database...${RESET}"
 if uapi Mysql create_database name="$FULL_DB_NAME" >/dev/null 2>&1; then
-    echo -e "${GREEN}Database created successfully: ${FULL_DB_NAME}${RESET}"
+    echo -e "${GREEN}Database created successfully.${RESET}"
 else
     echo -e "${RED}Failed to create database!${RESET}"
     exit 1
@@ -71,7 +87,7 @@ fi
 # Create the database user
 echo -e "${GREEN}Creating user...${RESET}"
 if uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1; then
-    echo -e "${GREEN}User created successfully: ${DB_USER}${RESET}"
+    echo -e "${GREEN}User created successfully.${RESET}"
 else
     echo -e "${RED}Failed to create database user!${RESET}"
     exit 1
@@ -86,11 +102,7 @@ else
     exit 1
 fi
 
-# Display the final details
-echo -e "${BLUE}--------------------------------${RESET}"
-echo -e "${GREEN}Database Name:${RESET} $FULL_DB_NAME"
-echo -e "${GREEN}Username:${RESET} $DB_USER"
-echo -e "${GREEN}Password:${RESET} $DB_PASS"
-echo -e "${BLUE}--------------------------------${RESET}"
+# Print results in a table format
+print_table
 
 exit 0
