@@ -80,6 +80,11 @@ backup_database() {
     # Get backup size
     BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 
+    # Display immediate progress if backing up all databases
+    if [ "$DB_CHOICE" == "1" ]; then
+        echo -e "${GREEN}✔ Database '${DB_NAME}' backed up successfully.${RESET}"
+    fi
+
     # Store results if backing up all databases
     if [ "$DB_CHOICE" == "1" ]; then
         BACKUP_RESULTS["$DB_NAME"]="$BACKUP_FILE ($BACKUP_SIZE)"
