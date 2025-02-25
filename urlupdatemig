@@ -9,10 +9,12 @@ get_db_details() {
     DB_USER=$(grep -oP "(?<=define\('DB_USER', ').*?(?='\);)" "$config_file")
     DB_PASS=$(grep -oP "(?<=define\('DB_PASSWORD', ').*?(?='\);)" "$config_file")
     DB_HOST=$(grep -oP "(?<=define\('DB_HOST', ').*?(?='\);)" "$config_file")
+    TABLE_PREFIX=$(grep -oP "(?<=\$table_prefix = ').*?(?=';")" "$config_file")
     SITE_URL=$(grep -oP "(?<=define\('WP_HOME', ').*?(?='\);)" "$config_file" || echo "Unknown")
     echo "Database Name: $DB_NAME"
     echo "Database User: $DB_USER"
     echo "Database Password: $DB_PASS"
+    echo "Table Prefix: $TABLE_PREFIX"
     echo "Site URL: $SITE_URL"
 }
 
@@ -49,10 +51,10 @@ if [[ "$update_choice" =~ ^[Yy]$ ]]; then
     
     echo "Updating URLs in database..."
     mysql -u "$TEMP_DB_USER" -p"$TEMP_DB_PASS" -D "$DB_NAME" -e "
-        UPDATE wp_options SET option_value = REPLACE(option_value, '$SITE_URL', '$NEW_URL') WHERE option_name IN ('siteurl', 'home');
-        UPDATE wp_posts SET guid = REPLACE(guid, '$SITE_URL', '$NEW_URL');
-        UPDATE wp_posts SET post_content = REPLACE(post_content, '$SITE_URL', '$NEW_URL');
-        UPDATE wp_postmeta SET meta_value = REPLACE(meta_value, '$SITE_URL', '$NEW_URL');
+        UPDATE ${TABLE_PREFIX}options SET option_value = REPLACE(option_value, '$SITE_URL', '$NEW_URL') WHERE option_name IN ('siteurl', 'home');
+        UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$SITE_URL', '$NEW_URL');
+        UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$SITE_URL', '$NEW_URL');
+        UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$SITE_URL', '$NEW_URL');
     "
     
     # WP-CLI for additional updates
