@@ -1,20 +1,21 @@
 #!/bin/bash
 
-# Check if the user provided a path
-if [ -z "$1" ]; then
-    echo "Usage: $0 /path/to/wordpress"
+# Prompt user to enter the WordPress directory
+read -p "Enter the full path to your WordPress installation: " WP_PATH
+
+# Check if the input is empty
+if [ -z "$WP_PATH" ]; then
+    echo "Error: No path entered. Please provide a valid WordPress directory."
     exit 1
 fi
 
-WP_PATH=$1
-
-# Check if wp-config.php exists to verify it's a WP installation
+# Verify if wp-config.php exists (confirming it's a WordPress installation)
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
     echo "Error: No WordPress installation found at $WP_PATH"
     exit 1
 fi
 
-# Navigate to the provided directory
+# Navigate to the WordPress directory
 cd "$WP_PATH" || exit
 
 echo "=================================="
