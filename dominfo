@@ -10,15 +10,24 @@ CYAN='\033[1;36m'
 NC='\033[0m' # No color
 
 # Run the uapi command to get domain details
-output=$(uapi DomainInfo domains_data)
+output=$(uapi --output=jsonpretty DomainInfo domains_data)
 
-# Extract required fields using grep and awk
-domains=($(echo "$output" | grep -E "domain: " | awk '{print $2}'))
-documentroots=($(echo "$output" | grep -E "documentroot: " | awk '{print $2}'))
-types=($(echo "$output" | grep -E "type: " | awk '{print $2}'))
+# Extract required fields correctly using awk
+domains=($(echo "$output" | grep '"domain":' | awk -F ': "' '{print $2}' | tr -d '",'))
+documentroots=($(echo "$output" | grep '"documentroot":' | awk -F ': "' '{print $2}' | tr -d '",'))
+types=($(echo "$output" | grep '"type":' | awk -F ': "' '{print $2}' | tr -d '",'))
 
 # Calculate the number of domains found
 count=${#domains[@]}
+
+# Debugging Output (Enable if needed)
+# set -x  # Uncomment this to debug
+
+# Check if domains are actually found
+if [[ $count -eq 0 ]]; then
+    echo -e "${RED}Error:${NC} No domains found. Please check the uapi output."
+    exit 1
+fi
 
 # Initialize counters for domain types
 main_count=0
@@ -26,7 +35,7 @@ addon_count=0
 parked_count=0
 subdomain_count=0
 
-# Set column widths dynamically based on content
+# Set column widths dynamically
 domain_width=50
 path_width=80
 type_width=20
@@ -41,7 +50,8 @@ print_border() {
 
 # Print header with border
 print_border
-printf "${MAGENTA}| ${BLUE}%-${domain_width}s${MAGENTA} | ${YELLOW}%-${path_width}s${MAGENTA} | ${GREEN}%-${type_width}s${MAGENTA} |\n${NC}" "Domain Name" "Document Root/Path" "Type"
+printf "${MAGENTA}| ${BLUE}%-${domain_width}s${MAGENTA} | ${YELLOW}%-${path_width}s${MAGENTA} | ${GREEN}%-${type_width}s${MAGENTA} |\n${NC}" \
+    "Domain Name" "Document Root/Path" "Type"
 print_border
 
 # Print rows of the table
