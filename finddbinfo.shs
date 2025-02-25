@@ -3,20 +3,25 @@
 # Function to fetch document root for a given domain
 get_document_root() {
     local domain="$1"
-    uapi DomainInfo domains_data | grep -A10 "domain: $domain" | grep "documentroot:" | awk '{print $2}'
+    uapi DomainInfo domains_data | awk -v d="$domain" '
+        $0 ~ "domain: " d {found=1} 
+        found && /documentroot:/ {print $2; exit}
+    '
 }
 
 # Function to extract DB credentials from configuration files
 extract_db_credentials() {
     local config_file="$1"
+
+    echo "--------------------------------------"
+    echo "Checking Configuration File: $config_file"
     
-    # Extract values based on common patterns
+    # Extract database name, user, password, and host
     db_name=$(grep -E "DB_NAME|database" "$config_file" | head -1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")
     db_user=$(grep -E "DB_USER|username" "$config_file" | head -1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")
     db_pass=$(grep -E "DB_PASSWORD|password" "$config_file" | head -1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")
     db_host=$(grep -E "DB_HOST|host" "$config_file" | head -1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")
-    
-    echo "Found Configuration File: $config_file"
+
     echo "Database Name: $db_name"
     echo "Database User: $db_user"
     echo "Database Password: $db_pass"
