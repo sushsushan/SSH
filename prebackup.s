@@ -26,19 +26,20 @@ fi
 total_size=$(du -sh "$dir" | cut -f1)
 echo -e "\n${BLUE}Total Size of Directory:${RESET} ${CYAN}$dir${RESET} ${YELLOW}($total_size)${RESET}"
 
-# List Directories and Files in Table Format
-echo -e "\n${CYAN}Contents of Directory:${RESET}\n"
-echo -e "${BLUE}--------------------------------------------${RESET}"
-echo -e "${GREEN}Files${RESET}\t\t\t\t${YELLOW}Folders${RESET}"
-echo -e "${BLUE}--------------------------------------------${RESET}"
+# List Files and Directories in a Proper Table
+echo -e "\n${CYAN}Contents of Directory (Files on Left | Folders on Right):${RESET}"
+echo -e "${BLUE}-------------------------------------------------------------${RESET}"
+printf "%-40s %-10s | %-40s %-10s\n" "Files" "Size" "Folders" "Size"
+echo -e "${BLUE}-------------------------------------------------------------${RESET}"
 
-paste <(
-    find "$dir" -mindepth 1 -maxdepth 1 -type f -exec ls -lh {} + | awk '{printf "%-40s (%s)\n", $9, $5}' | sed "s|$dir/||" | sort
-) <(
-    find "$dir" -mindepth 1 -maxdepth 1 -type d -exec du -sh {} + | awk '{printf "%-40s (%s)\n", $2, $1}' | sed "s|$dir/||" | sort
-) | column -t
+# Get files and folders lists
+files=$(find "$dir" -mindepth 1 -maxdepth 1 -type f -exec ls -lh {} + | awk '{printf "%-40s %-10s\n", $9, $5}' | sed "s|$dir/||")
+folders=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -exec du -sh {} + | awk '{printf "%-40s %-10s\n", $2, $1}' | sed "s|$dir/||")
 
-echo -e "${BLUE}--------------------------------------------${RESET}\n"
+# Merge files and folders into table format
+paste <(echo "$files") <(echo "$folders") | column -t
+
+echo -e "${BLUE}-------------------------------------------------------------${RESET}\n"
 
 # Read Exclusions
 read -rp "Enter exclusions (comma-separated): " ex
