@@ -15,23 +15,35 @@ echo -e "${CYAN}============================================================${RE
 echo -e "${YELLOW}This tool helps you automate various Linux tasks effortlessly.${RESET}\n"
 
 echo -e "${CYAN}------------------------------------------------------------${RESET}"
-echo -e "| ${GREEN}Option${RESET} | ${GREEN}Feature${RESET}                           |"
+printf "| %-5s | %-35s |
+" "${GREEN}Option${RESET}" "${GREEN}Feature${RESET}"
 echo -e "${CYAN}------------------------------------------------------------${RESET}"
-echo -e "|   1    | cPanel Management                 |"
-echo -e "|   2    | Email Services                    |"
-echo -e "|   3    | Domain Management                 |"
-echo -e "|   4    | Database Management               |"
-echo -e "|   5    | WordPress Setup                   |"
-echo -e "|   6    | Backup & Restore                  |"
-echo -e "|   7    | System Optimization               |"
-echo -e "|   8    | Security Enhancements             |"
-echo -e "|   9    | Other Tools                       |"
-echo -e "|   0    | Return to Home                    |"
+printf "| %-5s | %-35s |
+" "1" "cPanel Management"
+printf "| %-5s | %-35s |
+" "2" "Email Services"
+printf "| %-5s | %-35s |
+" "3" "Domain Management"
+printf "| %-5s | %-35s |
+" "4" "Database Management"
+printf "| %-5s | %-35s |
+" "5" "WordPress Setup"
+printf "| %-5s | %-35s |
+" "6" "Backup & Restore"
+printf "| %-5s | %-35s |
+" "7" "System Optimization"
+printf "| %-5s | %-35s |
+" "8" "Security Enhancements"
+printf "| %-5s | %-35s |
+" "9" "Other Tools"
+printf "| %-5s | %-35s |
+" "0" "Return to Home"
 echo -e "${CYAN}------------------------------------------------------------${RESET}\n"
 
 # Prompt user for input
 while true; do
-    read -p "${BLUE}Please enter your choice: ${RESET}" choice
+    echo -ne "${BLUE}Please enter your choice: ${RESET}"
+    read choice
     case $choice in
         1) script_url="https://raw.githubusercontent.com/sushsushan/SSH/main/1.sh" ;;
         2) script_url="https://raw.githubusercontent.com/sushsushan/SSH/main/2.sh" ;;
