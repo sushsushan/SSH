@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# Color Codes
+GREEN='\033[1;32m'
+BLUE='\033[1;34m'
+CYAN='\033[1;36m'
+RED='\033[1;31m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+# Log errors but don't show them to users
+ERROR_LOG="wpcli_errors.log"
+exec 2>>$ERROR_LOG
+
+# Welcome Banner
+echo -e "${GREEN}========================================${RESET}"
+echo -e "${BLUE}    🚀 Mega WordPress Info Tool 🚀     ${RESET}"
+echo -e "${GREEN}========================================${RESET}"
+
+# Prompt for WordPress path
+read -p "Enter the full path to your WordPress installation: " WP_PATH
+
+# Validate the path
+if [ -z "$WP_PATH" ] || [ ! -f "$WP_PATH/wp-config.php" ]; then
+    echo -e "${RED}⚠️ Invalid WordPress directory!${RESET}"
+    exit 1
+fi
+
+# Navigate to the WordPress directory
+cd "$WP_PATH" || exit
+
+# Start fetching details
+echo -e "${CYAN}Fetching WordPress details... Please wait!${RESET}"
+echo ""
+
+# Table Header
+printf "${YELLOW}%-25s %-50s${RESET}\n" "DETAIL" "VALUE"
+printf "%-25s %-50s\n" "-------------------------" "--------------------------------------------------"
+
+# 🔹 WordPress Version
+printf "%-25s %-50s\n" "WordPress Version:" "$(wp core version --allow-root)"
+
+# 🔹 URLs
+printf "%-25s %-50s\n" "Site URL:" "$(wp option get siteurl --allow-root)"
+printf "%-25s %-50s\n" "Home URL:" "$(wp option get home --allow-root)"
+
+# 🔹 Database Details
+printf "%-25s %-50s\n" "Database Name:" "$(wp config get DB_NAME --allow-root)"
+printf "%-25s %-50s\n" "Database User:" "$(wp config get DB_USER --allow-root)"
+printf "%-25s %-50s\n" "Database Host:" "$(wp config get DB_HOST --allow-root)"
+printf "%-25s %-50s\n" "Table Prefix:" "$(wp config get table_prefix --allow-root)"
+
+# 🔹 Active Theme
+printf "%-25s %-50s\n" "Active Theme:" "$(wp theme list --status=active --format=csv --allow-root | tail -n1 | cut -d, -f2)"
+
+# 🔹 Installed Plugins
+echo -e "${GREEN}\nInstalled Plugins:${RESET}"
+wp plugin list --format=table --allow-root | sed 's/^/  /'
+
+# 🔹 Users & Roles
+echo -e "${GREEN}\nUsers & Roles:${RESET}"
+wp user list --fields=ID,user_login,display_name,role --format=table --allow-root | sed 's/^/  /'
+
+# 🔹 Post & Page Counts
+printf "%-25s %-50s\n" "Total Posts:" "$(wp post list --post_type=post --format=count --allow-root)"
+printf "%-25s %-50s\n" "Total Pages:" "$(wp post list --post_type=page --format=count --allow-root)"
+printf "%-25s %-50s\n" "Total Drafts:" "$(wp post list --post_status=draft --format=count --allow-root)"
+
+# 🔹 Media Library Info
+printf "%-25s %-50s\n" "Total Media Files:" "$(wp media list --format=count --allow-root)"
+
+# 🔹 WP Cron Jobs
+echo -e "${GREEN}\nScheduled Cron Jobs:${RESET}"
+wp cron event list --allow-root | sed 's/^/  /'
+
+# 🔹 Permalink Structure
+printf "%-25s %-50s\n" "Permalink Structure:" "$(wp option get permalink_structure --allow-root)"
+
+# 🔹 WP Debug Mode
+DEBUG_MODE=$(wp config get WP_DEBUG --allow-root 2>/dev/null)
+if [ "$DEBUG_MODE" == "true" ]; then
+    printf "%-25s %-50s\n" "WP Debug Mode:" "Enabled"
+else
+    printf "%-25s %-50s\n" "WP Debug Mode:" "Disabled"
+fi
+
+# 🔹 Email Configuration
+printf "%-25s %-50s\n" "Admin Email:" "$(wp option get admin_email --allow-root)"
+
+# 🔹 Site Health Status
+echo -e "${GREEN}\nWordPress Site Health Info:${RESET}"
+wp site health status --fields=status,description --format=table --allow-root | sed 's/^/  /'
+
+# 🔹 File Permissions Fix
+echo -e "${GREEN}\nChecking & Fixing File Permissions...${RESET}"
+find . -type d -exec chmod 755 {} \; 2>/dev/null
+find . -type f -exec chmod 644 {} \; 2>/dev/null
+echo "File Permissions Set to 755 (Dirs) & 644 (Files)"
+
+echo -e "${GREEN}\n========================================${RESET}"
+echo -e "${BLUE}       ✅ Mega WordPress Info Done! ✅  ${RESET}"
+echo -e "${GREEN}========================================${RESET}"
