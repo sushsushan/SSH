@@ -14,17 +14,23 @@ exec 2>>"$ERROR_LOG"
 
 # Display Welcome Message
 echo -e "${GREEN}========================================${RESET}"
-echo -e "${BLUE}    🚀 Mega WordPress Info Tool 🚀     ${RESET}"
+echo -e "${BLUE}    🚀 Ultimate WordPress Info Tool 🚀  ${RESET}"
 echo -e "${GREEN}========================================${RESET}"
 
-# Prompt for the WordPress path
-read -rp "Enter the full path to your WordPress installation: " WP_PATH
+# Function to get the correct WordPress directory
+get_wp_directory() {
+    while true; do
+        read -rp "Enter the full path to your WordPress installation: " WP_PATH
+        if [[ -d "$WP_PATH" && -f "$WP_PATH/wp-config.php" ]]; then
+            break
+        else
+            echo -e "${RED}⚠️  Invalid WordPress directory!${RESET} Please enter a valid path."
+        fi
+    done
+}
 
-# Validate the path
-if [[ -z "$WP_PATH" || ! -f "$WP_PATH/wp-config.php" ]]; then
-    echo -e "${RED}⚠️  Invalid WordPress directory!${RESET}"
-    exit 1
-fi
+# Get the WordPress directory from the user
+get_wp_directory
 
 # Navigate to the WordPress directory
 cd "$WP_PATH" || exit
@@ -102,5 +108,5 @@ find . -type f -exec chmod 644 {} \; 2>/dev/null
 echo "File Permissions Set to 755 (Dirs) & 644 (Files)"
 
 echo -e "${GREEN}\n========================================${RESET}"
-echo -e "${BLUE}       ✅ Mega WordPress Info Done! ✅  ${RESET}"
+echo -e "${BLUE}       ✅ Ultimate WordPress Info Done! ✅  ${RESET}"
 echo -e "${GREEN}========================================${RESET}"
