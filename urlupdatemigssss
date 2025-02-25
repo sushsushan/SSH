@@ -9,7 +9,7 @@ get_db_details() {
     DB_USER=$(grep -oP "(?<=define\('DB_USER', ').*?(?='\);)" "$config_file")
     DB_PASS=$(grep -oP "(?<=define\('DB_PASSWORD', ').*?(?='\);)" "$config_file")
     DB_HOST=$(grep -oP "(?<=define\('DB_HOST', ').*?(?='\);)" "$config_file")
-    TABLE_PREFIX=$(grep -oP "(?<=\$table_prefix = ').*?(?=';")" "$config_file")
+    TABLE_PREFIX=$(grep -oE "\$table_prefix = '[^']+'" "$config_file" | cut -d"'" -f2)
     SITE_URL=$(grep -oP "(?<=define\('WP_HOME', ').*?(?='\);)" "$config_file" || echo "Unknown")
     echo "Database Name: $DB_NAME"
     echo "Database User: $DB_USER"
