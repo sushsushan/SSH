@@ -41,13 +41,15 @@ while IFS= read -r wp_config; do
     # Extract installation path
     WP_PATH=$(dirname "$wp_config")
 
-    # Extract details from wp-config.php
-    DB_NAME=$(grep -oP "(?<=define\('DB_NAME', ').*?(?='\))" "$wp_config" || echo "N/A")
-    DB_USER=$(grep -oP "(?<=define\('DB_USER', ').*?(?='\))" "$wp_config" || echo "N/A")
-    DB_PASS=$(grep -oP "(?<=define\('DB_PASSWORD', ').*?(?='\))" "$wp_config" || echo "N/A")
-    PREFIX=$(grep -oP "(?<=\$table_prefix = ').*?(?=';)" "$wp_config" || echo "N/A")
+    # Extract database details using grep
+    DB_NAME=$(grep "DB_NAME" "$wp_config" | cut -d "'" -f4 || echo "N/A")
+    DB_USER=$(grep "DB_USER" "$wp_config" | cut -d "'" -f4 || echo "N/A")
+    DB_PASS=$(grep "DB_PASSWORD" "$wp_config" | cut -d "'" -f4 || echo "N/A")
 
-    # Extract home URL and site URL from database using WP-CLI (if available)
+    # Extract table prefix
+    PREFIX=$(grep "\$table_prefix" "$wp_config" | cut -d "'" -f2 || echo "N/A")
+
+    # Extract site and home URL using WP-CLI
     if command -v wp &>/dev/null; then
         SITE_URL=$(wp option get siteurl --path="$WP_PATH" --allow-root 2>/dev/null || echo "N/A")
         HOME_URL=$(wp option get home --path="$WP_PATH" --allow-root 2>/dev/null || echo "N/A")
