@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# Function to generate a random 4-digit number
+generate_random_number() {
+    echo $((RANDOM % 9000 + 1000))
+}
+
+# Get current cPanel username
+CPANEL_USER=$(whoami)
+
+# Welcome message
+echo "=============================================="
+echo "  Welcome to the Advanced Staging Creation Tool "
+echo "=============================================="
+echo ""
+
+# Detect WordPress installations
+echo "Scanning for installed WordPress sites..."
+WP_DIRS=($(find ~ -type d -name "wp-admin" -exec dirname {} \; 2>/dev/null))
+
+if [[ ${#WP_DIRS[@]} -eq 0 ]]; then
+    echo "No WordPress installations found in your home directory."
+    exit 1
+fi
+
+echo "Found the following WordPress installations:"
+for i in "${!WP_DIRS[@]}"; do
+    echo "$((i+1)). ${WP_DIRS[$i]}"
+done
+
+# Ask user to select a directory
+read -p "Enter the number corresponding to your WordPress installation: " selection
+if ! [[ "$selection" =~ ^[0-9]+$ ]] || (( selection < 1 || selection > ${#WP_DIRS[@]} )); then
+    echo "Invalid selection. Exiting."
+    exit 1
+fi
+
+WP_PATH="${WP_DIRS[$((selection-1))]}"
+echo "Selected WordPress path: $WP_PATH"
+
+# Confirm WordPress installation
+if [[ ! -f "$WP_PATH/wp-config.php" ]]; then
+    echo "Error: No WordPress installation detected in $WP_PATH"
+    exit 1
+fi
+
+# Extract database credentials from wp-config.php
+DB_NAME=$(grep -oP "(?<=DB_NAME', ').*?(?=')" "$WP_PATH/wp-config.php")
+DB_USER=$(grep -oP "(?<=DB_USER', ').*?(?=')" "$WP_PATH/wp-config.php")
+DB_PASS=$(grep -oP "(?<=DB_PASSWORD', ').*?(?=')" "$WP_PATH/wp-config.php")
+
+# Create a backup directory
+BACKUP_DIR=~/backup
+mkdir -p "$BACKUP_DIR"
+
+# Generate database backup
+BACKUP_FILE="$BACKUP_DIR/${DB_NAME}_$(date +"%Y%m%d_%H%M%S").sql"
+echo "Creating database backup..."
+
+# Try wp db export first, fallback to mysqldump
+if wp db export "$BACKUP_FILE" --path="$WP_PATH" 2>/dev/null; then
+    echo "Backup created using WP-CLI: $BACKUP_FILE"
+else
+    echo "WP-CLI backup failed, using MySQL dump..."
+    mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" > "$BACKUP_FILE" 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "Database backup failed!"
+        exit 1
+    fi
+    echo "Backup created using mysqldump: $BACKUP_FILE"
+fi
+
+# Create a new staging directory
+STAGING_DIR="$WP_PATH/staging"
+mkdir -p "$STAGING_DIR"
+
+# Generate a unique 4-digit folder
+RANDOM_ID=$(generate_random_number)
+STAGING_SUBDIR="$STAGING_DIR/$RANDOM_ID"
+mkdir "$STAGING_SUBDIR"
+
+# Copy files excluding existing staging directories
+echo "Copying files to the staging site..."
+rsync -a --exclude='staging' "$WP_PATH/" "$STAGING_SUBDIR/" --quiet
+
+# Create a new database for staging
+STAGING_DB_NAME="${CPANEL_USER}_staging_${RANDOM_ID}"
+STAGING_DB_USER="${CPANEL_USER}_user_${RANDOM_ID}"
+STAGING_DB_PASS=$(openssl rand -base64 12)
+
+echo "Creating new database: $STAGING_DB_NAME"
+uapi Mysql create_database name="$STAGING_DB_NAME" >/dev/null 2>&1
+
+echo "Creating new user: $STAGING_DB_USER"
+uapi Mysql create_user name="$STAGING_DB_USER" password="$STAGING_DB_PASS" >/dev/null 2>&1
+
+echo "Assigning user to database..."
+uapi Mysql set_privileges_on_database database="$STAGING_DB_NAME" user="$STAGING_DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+# Import backup to new staging database
+echo "Importing database to staging..."
+mysql -u "$STAGING_DB_USER" -p"$STAGING_DB_PASS" "$STAGING_DB_NAME" < "$BACKUP_FILE" 2>/dev/null
+
+if [[ $? -ne 0 ]]; then
+    echo "Database import failed!"
+    exit 1
+fi
+
+# Update wp-config.php for staging
+echo "Updating wp-config.php for staging..."
+sed -i "s/define('DB_NAME', '.*');/define('DB_NAME', '$STAGING_DB_NAME');/" "$STAGING_SUBDIR/wp-config.php"
+sed -i "s/define('DB_USER', '.*');/define('DB_USER', '$STAGING_DB_USER');/" "$STAGING_SUBDIR/wp-config.php"
+sed -i "s/define('DB_PASSWORD', '.*');/define('DB_PASSWORD', '$STAGING_DB_PASS');/" "$STAGING_SUBDIR/wp-config.php"
+
+# Inform the user
+echo "======================================"
+echo "  Staging Site Created Successfully!  "
+echo "======================================"
+echo "Path: $STAGING_SUBDIR"
+echo "Your staging environment is ready for testing."
