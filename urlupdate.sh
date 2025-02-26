@@ -32,16 +32,14 @@ fi
 read -p "Enter the new URL for the website: " NEW_URL
 
 # Create a temporary MySQL user using cPanel UAPI
-echo "Fetching available databases..."
-uapi Mysql list_databases | grep -oP '(?<=database:\s).+'
-read -p "Enter database name: " DB_NAME
-DB_USER="$(whoami)_$(openssl rand -hex 4)"
-DB_PASS=$(openssl rand -base64 12)
-uapi Mysql create_user name="$DB_USER" password="$DB_PASS" >/dev/null 2>&1
-uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+echo "Creating temporary database user..."
+DB_TMP_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_TMP_PASS=$(openssl rand -base64 12)
+uapi Mysql create_user name="$DB_TMP_USER" password="$DB_TMP_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_TMP_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
 
 # Update database with new URLs using MySQL queries
-mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
 UPDATE wp_options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
 UPDATE wp_posts SET guid = REPLACE(guid, '$OLD_URL', '$NEW_URL');
 UPDATE wp_posts SET post_content = REPLACE(post_content, '$OLD_URL', '$NEW_URL');
@@ -53,10 +51,7 @@ UPDATE wp_comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_UR
 # Use WP-CLI to update URLs for additional safety
 wp search-replace "$OLD_URL" "$NEW_URL" --all-tables --allow-root
 
-# Optimize database tables
-mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e "OPTIMIZE TABLE $(mysql -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -Bse 'SHOW TABLES' | tr '\n' ',' | sed 's/,$//');"
-
 # Remove the temporary MySQL user
-uapi Mysql delete_user name="$DB_USER" >/dev/null 2>&1
+uapi Mysql delete_user name="$DB_TMP_USER" >/dev/null 2>&1
 
 echo "WordPress migration completed successfully! All URLs have been updated."
