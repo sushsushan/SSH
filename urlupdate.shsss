@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Function to get WordPress configuration details
+get_wp_config() {
+    DB_NAME=$(grep DB_NAME wp-config.php | cut -d "'" -f 4)
+    DB_USER=$(grep DB_USER wp-config.php | cut -d "'" -f 4)
+    DB_PASS=$(grep DB_PASSWORD wp-config.php | cut -d "'" -f 4)
+    DB_HOST=$(grep DB_HOST wp-config.php | cut -d "'" -f 4)
+    TABLE_PREFIX=$(grep -oP "(?<=table_prefix = ').*(?=')" wp-config.php)
+
+    if [[ -z "$TABLE_PREFIX" ]]; then
+        TABLE_PREFIX="wp_"  # Default prefix fallback
+    fi
+}
+
+# Confirm WordPress directory
+read -p "Enter the WordPress directory: " WP_DIR
+if [ ! -f "$WP_DIR/wp-config.php" ]; then
+    echo "Error: wp-config.php not found in $WP_DIR. Exiting."
+    exit 1
+fi
+cd "$WP_DIR"
+
+# Fetch WordPress details
+get_wp_config
+
+# Get current home and site URL
+OLD_HOME_URL=$(wp option get home --allow-root)
+OLD_SITE_URL=$(wp option get siteurl --allow-root)
+
+echo -e "\n✅ Current WordPress URLs:"
+echo "Home URL: $OLD_HOME_URL"
+echo "Site URL: $OLD_SITE_URL"
+
+# Confirm the new URL
+read -p "Enter the new URL for the website: " NEW_URL
+
+# Ask for database backup confirmation
+read -p "Do you have a database backup? (yes/no): " DB_BACKUP
+if [ "$DB_BACKUP" != "yes" ]; then
+    echo "⚠ Please take a backup before proceeding. Exiting."
+    exit 1
+fi
+
+# Create a temporary MySQL user using cPanel UAPI
+echo "🔧 Creating temporary database user..."
+DB_TMP_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_TMP_PASS=$(openssl rand -base64 12)
+uapi Mysql create_user name="$DB_TMP_USER" password="$DB_TMP_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_TMP_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+# Display current URLs from the database before updating
+echo -e "\n📌 URLs from database before update:"
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+SELECT option_name, option_value FROM ${TABLE_PREFIX}options WHERE option_name IN ('siteurl', 'home');
+"
+
+# Update database with new URLs using MySQL queries
+echo "🚀 Updating URLs in the database..."
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+UPDATE ${TABLE_PREFIX}options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
+UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_HOME_URL', '$NEW_URL');
+"
+
+# Use WP-CLI to update URLs (for serialized data safety)
+wp search-replace "$OLD_HOME_URL" "$NEW_URL" --all-tables --allow-root
+
+# Display updated URLs from the database after update
+echo -e "\n✅ URLs after update:"
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+SELECT option_name, option_value FROM ${TABLE_PREFIX}options WHERE option_name IN ('siteurl', 'home');
+"
+
+# Remove the temporary MySQL user
+uapi Mysql delete_user name="$DB_TMP_USER" >/dev/null 2>&1
+
+echo -e "\n🎉 WordPress migration completed successfully! All URLs have been updated."
