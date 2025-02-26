@@ -6,6 +6,11 @@ get_wp_config() {
     DB_USER=$(grep DB_USER wp-config.php | cut -d "'" -f 4)
     DB_PASS=$(grep DB_PASSWORD wp-config.php | cut -d "'" -f 4)
     DB_HOST=$(grep DB_HOST wp-config.php | cut -d "'" -f 4)
+    TABLE_PREFIX=$(grep -oP "(?<=table_prefix = ').*(?=')" wp-config.php)
+
+    if [[ -z "$TABLE_PREFIX" ]]; then
+        TABLE_PREFIX="wp_"  # Default prefix fallback
+    fi
 }
 
 # Confirm WordPress directory
@@ -40,12 +45,12 @@ uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_TMP_USER" pr
 
 # Update database with new URLs using MySQL queries
 mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
-UPDATE wp_options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
-UPDATE wp_posts SET guid = REPLACE(guid, '$OLD_URL', '$NEW_URL');
-UPDATE wp_posts SET post_content = REPLACE(post_content, '$OLD_URL', '$NEW_URL');
-UPDATE wp_postmeta SET meta_value = REPLACE(meta_value, '$OLD_URL', '$NEW_URL');
-UPDATE wp_comments SET comment_content = REPLACE(comment_content, '$OLD_URL', '$NEW_URL');
-UPDATE wp_comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
+UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$OLD_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$OLD_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$OLD_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$OLD_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_URL', '$NEW_URL');
 "
 
 # Use WP-CLI to update URLs for additional safety
