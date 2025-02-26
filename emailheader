@@ -1,1 +1,79 @@
+#!/bin/bash
 
+# Email Header Analyzer Script
+# This script takes an email header as input and provides a detailed, well-organized output.
+
+# Colors for output
+green="\e[32m"
+red="\e[31m"
+yellow="\e[33m"
+blue="\e[34m"
+bold="\e[1m"
+reset="\e[0m"
+
+# Function to print section headers
+print_header() {
+    echo -e "${bold}${blue}$1${reset}"
+    echo "----------------------------------------"
+}
+
+# Prompt user for email header input
+echo -e "${yellow}Paste the full email header and press Ctrl+D when done:${reset}"
+header=$(cat)
+
+# Check if header is empty
+if [[ -z "$header" ]]; then
+    echo -e "${red}Error: No input received. Please provide a valid email header.${reset}"
+    exit 1
+fi
+
+# Extract relevant information
+from=$(echo "$header" | grep -i "^From:" | cut -d":" -f2-)
+to=$(echo "$header" | grep -i "^To:" | cut -d":" -f2-)
+subject=$(echo "$header" | grep -i "^Subject:" | cut -d":" -f2-)
+date=$(echo "$header" | grep -i "^Date:" | cut -d":" -f2-)
+return_path=$(echo "$header" | grep -i "^Return-Path:" | cut -d":" -f2-)
+x_origin_ip=$(echo "$header" | grep -i "^X-Originating-IP:" | cut -d":" -f2- | tr -d '[]')
+spf=$(echo "$header" | grep -i "spf=" | head -n 1)
+dkim=$(echo "$header" | grep -i "dkim=" | head -n 1)
+dmarc=$(echo "$header" | grep -i "dmarc=" | head -n 1)
+received=$(echo "$header" | grep -i "^Received:" | tac)
+auth_results=$(echo "$header" | grep -i "^Authentication-Results:" | cut -d":" -f2-)
+arc_seal=$(echo "$header" | grep -i "^ARC-Seal:" | cut -d":" -f2-)
+arc_auth=$(echo "$header" | grep -i "^ARC-Authentication-Results:" | cut -d":" -f2-)
+x_spam_status=$(echo "$header" | grep -i "^X-Spam-Status:" | cut -d":" -f2-)
+x_spam_score=$(echo "$header" | grep -i "^X-Spam-Score:" | cut -d":" -f2-)
+
+# Display results
+clear
+echo -e "${bold}${green}Email Header Analysis Report${reset}"
+echo "========================================"
+
+print_header "Basic Information"
+echo -e "${green}From:${reset} $from"
+echo -e "${green}To:${reset} $to"
+echo -e "${green}Subject:${reset} $subject"
+echo -e "${green}Date:${reset} $date"
+
+echo ""
+print_header "Technical Details"
+echo -e "${yellow}Return Path:${reset} $return_path"
+echo -e "${yellow}X-Originating IP:${reset} $x_origin_ip"
+echo -e "${yellow}SPF:${reset} $spf"
+echo -e "${yellow}DKIM:${reset} $dkim"
+echo -e "${yellow}DMARC:${reset} $dmarc"
+echo -e "${yellow}Authentication Results:${reset} $auth_results"
+echo -e "${yellow}ARC-Seal:${reset} $arc_seal"
+echo -e "${yellow}ARC-Authentication Results:${reset} $arc_auth"
+
+echo ""
+print_header "Spam Detection Headers"
+echo -e "${red}X-Spam-Status:${reset} $x_spam_status"
+echo -e "${red}X-Spam-Score:${reset} $x_spam_score"
+
+echo ""
+print_header "Received Chain (Mail Servers)"
+echo -e "${red}$received${reset}"
+
+echo ""
+echo -e "${bold}${green}Analysis Complete.${reset}"
