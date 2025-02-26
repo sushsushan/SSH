@@ -13,9 +13,9 @@ RESET='\e[0m'
 
 # Function to display a table of current cron jobs
 list_cron_jobs() {
-    echo -e "${CYAN}\n==============================="
+    echo -e "${CYAN}\n================================="
     echo -e "      Current Cron Jobs      "
-    echo -e "===============================${RESET}"
+    echo -e "=================================${RESET}"
     crontab -l | awk '{print NR" | "$0}' | column -t -s '|'
     if [ $? -ne 0 ]; then
         echo -e "${RED}No cron jobs found.${RESET}"
@@ -69,9 +69,9 @@ edit_cron_job() {
 
 # Function to display tutorial
 tutorial() {
-    echo -e "${CYAN}\n==============================="
+    echo -e "${CYAN}\n================================="
     echo -e "       Cron Job Tutorial       "
-    echo -e "===============================${RESET}"
+    echo -e "=================================${RESET}"
     echo -e "\n${WHITE}A cron job is a scheduled task that runs automatically at specified times.${RESET}"
     echo -e "\n${YELLOW}Cron Syntax:${RESET}"
     echo -e "${WHITE}* * * * * command${RESET}  (Minute, Hour, Day of Month, Month, Day of Week)"
