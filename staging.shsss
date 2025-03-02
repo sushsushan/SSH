@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# 🚀 WordPress Staging Site Creator & URL Updater
+# This script creates a staging environment, imports the database, and updates all internal links.
+
+set -e  # Exit on error
+LOG_FILE="staging_setup.log"
+BACKUP_FILE="db_backup_$(date +%F_%H-%M-%S).sql"
+
+# Function to log messages
+log_message() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+# Confirm WordPress directory
+read -p "Enter the WordPress directory: " WP_DIR
+if [ ! -f "$WP_DIR/wp-config.php" ]; then
+    log_message "❌ Error: wp-config.php not found in $WP_DIR. Exiting."
+    exit 1
+fi
+cd "$WP_DIR"
+
+# Extract database details from wp-config.php
+log_message "🔍 Extracting database details from wp-config.php..."
+DB_NAME=$(grep DB_NAME wp-config.php | cut -d "'" -f 4)
+DB_USER=$(grep DB_USER wp-config.php | cut -d "'" -f 4)
+DB_PASS=$(grep DB_PASSWORD wp-config.php | cut -d "'" -f 4)
+DB_HOST=$(grep DB_HOST wp-config.php | cut -d "'" -f 4)
+TABLE_PREFIX=$(grep -oP "(?<=table_prefix = ').*(?=')" wp-config.php || echo "wp_")
+
+# Get current site URL
+OLD_HOME_URL=$(wp option get home --allow-root)
+OLD_SITE_URL=$(wp option get siteurl --allow-root)
+
+log_message "✅ Current WordPress URLs:"
+log_message "   Home URL: $OLD_HOME_URL"
+log_message "   Site URL: $OLD_SITE_URL"
+
+# Get new staging site details
+read -p "Enter the new staging site URL: " NEW_URL
+read -p "Enter the staging directory path: " STAGING_DIR
+mkdir -p "$STAGING_DIR"
+cp -r . "$STAGING_DIR"  # Copy all files
+cd "$STAGING_DIR"
+
+# Create a new database for staging
+STAGING_DB_NAME="staging_${DB_NAME}"
+log_message "📦 Creating a new database: $STAGING_DB_NAME..."
+mysql -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" -e "CREATE DATABASE IF NOT EXISTS $STAGING_DB_NAME;"
+mysqldump -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" "$DB_NAME" | mysql -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" "$STAGING_DB_NAME"
+
+# Update wp-config.php with new database details
+log_message "🔧 Updating wp-config.php for staging site..."
+sed -i "s/define( 'DB_NAME', '$DB_NAME' )/define( 'DB_NAME', '$STAGING_DB_NAME' )/g" wp-config.php
+
+# Update URLs in database
+log_message "🚀 Updating URLs in the database..."
+mysql -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" "$STAGING_DB_NAME" -e "
+UPDATE ${TABLE_PREFIX}options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
+UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_HOME_URL', '$NEW_URL');"
+
+# Use WP-CLI for deep updates
+log_message "⚡ Running WP-CLI search-replace..."
+wp search-replace "$OLD_HOME_URL" "$NEW_URL" --all-tables --allow-root --precise --recurse-objects | tee -a "$LOG_FILE"
+
+# Flush cache and permalinks
+log_message "♻ Flushing cache and permalinks..."
+wp cache flush --allow-root
+wp rewrite flush --allow-root
+
+log_message "🎉 Staging site setup completed successfully!"
+log_message "📂 A full log of this process is saved in: $LOG_FILE"
