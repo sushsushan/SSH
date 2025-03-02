@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# 🚀 Advanced WordPress Staging Creation & URL Replacement Script
+# - Creates a new staging site
+# - Imports the database and updates wp-config.php
+# - Replaces all old site URLs with the new staging URL
+
+set -e  # Exit on error
+
+# ===== CONFIGURATION =====
+LOG_FILE="wp_staging_migration.log"
+BACKUP_FILE="db_backup_$(date +%F_%H-%M-%S).sql"
+
+# ===== FUNCTION TO LOG MESSAGES =====
+log_message() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+# ===== FUNCTION TO EXTRACT DATABASE DETAILS FROM WP-CONFIG.PHP =====
+get_wp_config() {
+    log_message "🔍 Extracting database details from wp-config.php..."
+    
+    DB_NAME=$(grep DB_NAME wp-config.php | cut -d "'" -f 4)
+    DB_USER=$(grep DB_USER wp-config.php | cut -d "'" -f 4)
+    DB_PASS=$(grep DB_PASSWORD wp-config.php | cut -d "'" -f 4)
+    DB_HOST=$(grep DB_HOST wp-config.php | cut -d "'" -f 4)
+    TABLE_PREFIX=$(grep -oP "(?<=table_prefix = ').*(?=')" wp-config.php)
+
+    if [[ -z "$TABLE_PREFIX" ]]; then
+        TABLE_PREFIX="wp_"  # Default WordPress table prefix
+    fi
+
+    log_message "✅ Database Name: $DB_NAME"
+    log_message "✅ Table Prefix: $TABLE_PREFIX"
+}
+
+# ===== CONFIRM WORDPRESS DIRECTORY =====
+read -p "Enter the WordPress directory path: " WP_DIR
+if [ ! -f "$WP_DIR/wp-config.php" ]; then
+    log_message "❌ Error: wp-config.php not found in $WP_DIR. Exiting."
+    exit 1
+fi
+cd "$WP_DIR"
+
+# ===== FETCH WORDPRESS DETAILS =====
+get_wp_config
+
+# ===== GET CURRENT WORDPRESS URLS =====
+OLD_HOME_URL=$(wp option get home --allow-root)
+OLD_SITE_URL=$(wp option get siteurl --allow-root)
+
+log_message "✅ Current WordPress URLs:"
+log_message "   Home URL: $OLD_HOME_URL"
+log_message "   Site URL: $OLD_SITE_URL"
+
+# ===== CONFIRM NEW STAGING URL =====
+read -p "Enter the new staging site URL: " NEW_URL
+
+# ===== BACKUP DATABASE BEFORE UPDATES =====
+log_message "📦 Creating a database backup: $BACKUP_FILE..."
+mysqldump -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" "$DB_NAME" > "$BACKUP_FILE"
+log_message "✅ Database backup completed."
+
+# ===== CREATE TEMPORARY MYSQL USER FOR SECURITY =====
+log_message "🔧 Creating temporary database user for safe operations..."
+DB_TMP_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_TMP_PASS=$(openssl rand -base64 12)
+
+uapi Mysql create_user name="$DB_TMP_USER" password="$DB_TMP_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_TMP_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+# ===== DISPLAY CURRENT URLS FROM DATABASE =====
+log_message "📌 URLs from database before update:"
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+SELECT option_name, option_value FROM ${TABLE_PREFIX}options WHERE option_name IN ('siteurl', 'home');
+"
+
+# ===== UPDATE DATABASE URLS =====
+log_message "🚀 Replacing all old URLs with the new staging URL..."
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+UPDATE ${TABLE_PREFIX}options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
+UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_HOME_URL', '$NEW_URL');
+"
+
+# ===== USE WP-CLI TO SAFELY UPDATE SERIALIZED DATA =====
+log_message "⚡ Running WP-CLI search-replace for deep updates..."
+wp search-replace "$OLD_HOME_URL" "$NEW_URL" --all-tables --allow-root --precise --recurse-objects | tee -a "$LOG_FILE"
+
+# ===== DISPLAY UPDATED URLS FROM DATABASE =====
+log_message "✅ URLs after update:"
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+SELECT option_name, option_value FROM ${TABLE_PREFIX}options WHERE option_name IN ('siteurl', 'home');
+"
+
+# ===== REMOVE TEMPORARY MYSQL USER =====
+log_message "🧹 Removing temporary MySQL user..."
+uapi Mysql delete_user name="$DB_TMP_USER" >/dev/null 2>&1
+
+# ===== FLUSH CACHE & REGENERATE PERMALINKS =====
+log_message "♻ Flushing cache and permalinks..."
+wp cache flush --allow-root
+wp rewrite flush --allow-root
+
+# ===== MIGRATION COMPLETE =====
+log_message "🎉 Migration completed successfully! All URLs have been updated."
+log_message "📂 A full log of this migration is saved in: $LOG_FILE"
