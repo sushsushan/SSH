@@ -8,31 +8,31 @@ CYAN="\033[1;36m"
 RESET="\033[0m"
 
 # Fetch domain data
-OUTPUT=$(uapi DomainInfo domains_data)
+OUTPUT=$(uapi DomainInfo domains_data --output=json)
 
 # Initialize arrays
 declare -a primary_domains parked_domains addon_domains sub_domains
 declare -A domain_roots domain_types
 
-# Parse the UAPI output
-current_domain=""
-while read -r line; do
-    if [[ $line =~ "domain:" ]]; then
-        current_domain=$(echo "$line" | awk '{print $2}')
-    elif [[ $line =~ "documentroot:" ]]; then
-        domain_roots[$current_domain]=$(echo "$line" | awk '{print $2}')
-    elif [[ $line =~ "type:" ]]; then
-        type=$(echo "$line" | awk '{print $2}')
-        domain_types[$current_domain]=$type
-        
-        case $type in
-            "main_domain") primary_domains+=("$current_domain") ;;
-            "parked_domain") parked_domains+=("$current_domain") ;;
-            "addon_domain") addon_domains+=("$current_domain") ;;
-            "sub_domain") sub_domains+=("$current_domain") ;;
+# Extract domain names, document roots, and types using grep & awk
+echo "$OUTPUT" | grep -E '"domain":|"documentroot":|"type":' | sed 's/[",]//g' | while read -r line; do
+    key=$(echo "$line" | awk '{print $1}')
+    value=$(echo "$line" | awk '{print $2}')
+
+    if [[ $key == "domain:" ]]; then
+        current_domain=$value
+    elif [[ $key == "documentroot:" ]]; then
+        domain_roots[$current_domain]=$value
+    elif [[ $key == "type:" ]]; then
+        domain_types[$current_domain]=$value
+        case $value in
+            main_domain) primary_domains+=("$current_domain") ;;
+            parked_domain) parked_domains+=("$current_domain") ;;
+            addon_domain) addon_domains+=("$current_domain") ;;
+            sub_domain) sub_domains+=("$current_domain") ;;
         esac
     fi
-done <<< "$OUTPUT"
+done
 
 # Print header
 echo -e "${YELLOW}-------------------------------------------------------------"
