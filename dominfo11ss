@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Run the command and store output
+OUTPUT=$(uapi DomainInfo domains_data)
+
+# Extract details using grep and awk
+echo -e "---------------------------------------------"
+echo -e "| Domain Name        | Document Root            | Type           |"
+echo -e "---------------------------------------------"
+
+# Counters
+total=0
+addon_count=0
+subdomain_count=0
+parked_count=0
+primary_count=0
+
+while read -r line; do
+    if [[ $line =~ "domain:" ]]; then
+        domain=$(echo "$line" | awk '{print $2}')
+        total=$((total+1))
+    elif [[ $line =~ "documentroot:" ]]; then
+        documentroot=$(echo "$line" | awk '{print $2}')
+    elif [[ $line =~ "type:" ]]; then
+        type=$(echo "$line" | awk '{print $2}')
+        
+        # Count types
+        case $type in
+            "addon_domain") addon_count=$((addon_count+1)) ;;
+            "sub_domain") subdomain_count=$((subdomain_count+1)) ;;
+            "parked_domain") parked_count=$((parked_count+1)) ;;
+            "main_domain") primary_count=$((primary_count+1)) ;;
+        esac
+        
+        # Print the formatted table row
+        printf "| %-18s | %-25s | %-12s |\n" "$domain" "$documentroot" "$type"
+    fi
+done <<< "$OUTPUT"
+
+echo -e "---------------------------------------------"
+echo -e "Total Domains: $total"
+echo -e "Primary Domains: $primary_count"
+echo -e "Addon Domains: $addon_count"
+echo -e "Subdomains: $subdomain_count"
+echo -e "Parked Domains: $parked_count"
