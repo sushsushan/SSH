@@ -21,7 +21,8 @@ types=($(echo "$output" | grep -E "type: " | awk '{print $2}'))
 count=${#domains[@]}
 
 # Initialize counters for domain types
-declare -A domain_count=( ["main"]=0 ["addon"]=0 ["parked"]=0 ["subdomain"]=0 )
+declare -A domain_count
+domain_count=( ["main"]=0 ["addon"]=0 ["parked"]=0 ["subdomain"]=0 )
 
 # Set column widths
 domain_width=40
@@ -63,9 +64,10 @@ done
 # Print bottom border
 print_border
 
-# Print summary
+# Correctly calculate total domains
 total_domains=$((domain_count["main"] + domain_count["addon"] + domain_count["parked"] + domain_count["subdomain"]))
 
+# Print summary
 echo -e "\n${CYAN}Summary:${NC}"
 printf "  ${BLUE}%-20s ${NC}%d\n" "Main Domains:" "${domain_count["main"]}"
 printf "  ${YELLOW}%-20s ${NC}%d\n" "Addon Domains:" "${domain_count["addon"]}"
