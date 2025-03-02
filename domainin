@@ -1,12 +1,21 @@
 #!/bin/bash
 
+# Define Colors
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
+CYAN="\033[1;36m"
+WHITE="\033[1;37m"
+RESET="\033[0m"
+
 # Run the command and store output
 OUTPUT=$(uapi DomainInfo domains_data)
 
-# Extract details using grep and awk
-echo -e "---------------------------------------------"
-echo -e "| Domain Name        | Document Root            | Type           |"
-echo -e "---------------------------------------------"
+# Print Table Header
+echo -e "${WHITE}-------------------------------------------------------------${RESET}"
+echo -e "| ${CYAN}Domain Name${RESET}         | ${CYAN}Document Root${RESET}              | ${CYAN}Type${RESET}         |"
+echo -e "${WHITE}-------------------------------------------------------------${RESET}"
 
 # Counters
 total=0
@@ -23,23 +32,26 @@ while read -r line; do
         documentroot=$(echo "$line" | awk '{print $2}')
     elif [[ $line =~ "type:" ]]; then
         type=$(echo "$line" | awk '{print $2}')
-        
+
         # Count types
         case $type in
-            "addon_domain") addon_count=$((addon_count+1)) ;;
-            "sub_domain") subdomain_count=$((subdomain_count+1)) ;;
-            "parked_domain") parked_count=$((parked_count+1)) ;;
-            "main_domain") primary_count=$((primary_count+1)) ;;
+            "addon_domain") addon_count=$((addon_count+1)); type_color=$YELLOW ;;
+            "sub_domain") subdomain_count=$((subdomain_count+1)); type_color=$BLUE ;;
+            "parked_domain") parked_count=$((parked_count+1)); type_color=$RED ;;
+            "main_domain") primary_count=$((primary_count+1)); type_color=$GREEN ;;
         esac
-        
-        # Print the formatted table row
-        printf "| %-18s | %-25s | %-12s |\n" "$domain" "$documentroot" "$type"
+
+        # Print the formatted table row with colors
+        printf "| %-18s | %-25s | ${type_color}%-12s${RESET} |\n" "$domain" "$documentroot" "$type"
     fi
 done <<< "$OUTPUT"
 
-echo -e "---------------------------------------------"
-echo -e "Total Domains: $total"
-echo -e "Primary Domains: $primary_count"
-echo -e "Addon Domains: $addon_count"
-echo -e "Subdomains: $subdomain_count"
-echo -e "Parked Domains: $parked_count"
+# Print Table Footer
+echo -e "${WHITE}-------------------------------------------------------------${RESET}"
+
+# Print Summary with Colors
+echo -e "${CYAN}Total Domains:${RESET} ${WHITE}$total${RESET}"
+echo -e "${GREEN}Primary Domains:${RESET} ${WHITE}$primary_count${RESET}"
+echo -e "${YELLOW}Addon Domains:${RESET} ${WHITE}$addon_count${RESET}"
+echo -e "${BLUE}Subdomains:${RESET} ${WHITE}$subdomain_count${RESET}"
+echo -e "${RED}Parked Domains:${RESET} ${WHITE}$parked_count${RESET}"
