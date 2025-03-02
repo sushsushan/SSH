@@ -12,10 +12,15 @@ RESET="\033[0m"
 # Run the command and store output
 OUTPUT=$(uapi DomainInfo domains_data)
 
-# Print Table Header
-echo -e "${WHITE}-------------------------------------------------------------${RESET}"
-echo -e "| ${CYAN}Domain Name${RESET}         | ${CYAN}Document Root${RESET}              | ${CYAN}Type${RESET}         |"
-echo -e "${WHITE}-------------------------------------------------------------${RESET}"
+# Column Widths
+DOMAIN_WIDTH=35
+ROOT_WIDTH=45
+TYPE_WIDTH=15
+
+# Print Table Header with Proper Formatting
+printf "${WHITE}%-${DOMAIN_WIDTH}s %-${ROOT_WIDTH}s %-${TYPE_WIDTH}s${RESET}\n" "--------------------------------------------------" "---------------------------------------------" "----------------"
+printf "| ${CYAN}%-${DOMAIN_WIDTH}s${RESET} | ${CYAN}%-${ROOT_WIDTH}s${RESET} | ${CYAN}%-${TYPE_WIDTH}s${RESET} |\n" "Domain Name" "Document Root" "Type"
+printf "${WHITE}%-${DOMAIN_WIDTH}s %-${ROOT_WIDTH}s %-${TYPE_WIDTH}s${RESET}\n" "--------------------------------------------------" "---------------------------------------------" "----------------"
 
 # Counters
 total=0
@@ -33,7 +38,7 @@ while read -r line; do
     elif [[ $line =~ "type:" ]]; then
         type=$(echo "$line" | awk '{print $2}')
 
-        # Count types
+        # Assign Colors to Types
         case $type in
             "addon_domain") addon_count=$((addon_count+1)); type_color=$YELLOW ;;
             "sub_domain") subdomain_count=$((subdomain_count+1)); type_color=$BLUE ;;
@@ -41,13 +46,13 @@ while read -r line; do
             "main_domain") primary_count=$((primary_count+1)); type_color=$GREEN ;;
         esac
 
-        # Print the formatted table row with colors
-        printf "| %-18s | %-25s | ${type_color}%-12s${RESET} |\n" "$domain" "$documentroot" "$type"
+        # Print Table Row with Proper Alignment & Colors
+        printf "| %-${DOMAIN_WIDTH}s | %-${ROOT_WIDTH}s | ${type_color}%-${TYPE_WIDTH}s${RESET} |\n" "$domain" "$documentroot" "$type"
     fi
 done <<< "$OUTPUT"
 
 # Print Table Footer
-echo -e "${WHITE}-------------------------------------------------------------${RESET}"
+printf "${WHITE}%-${DOMAIN_WIDTH}s %-${ROOT_WIDTH}s %-${TYPE_WIDTH}s${RESET}\n" "--------------------------------------------------" "---------------------------------------------" "----------------"
 
 # Print Summary with Colors
 echo -e "${CYAN}Total Domains:${RESET} ${WHITE}$total${RESET}"
