@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Function to extract domain name from backup file
+extract_domain() {
+    filename=$(basename "$1")
+    domain=$(echo "$filename" | sed -E 's/(.*)_backup_[0-9]+\.tar\.gz/\1/')
+    echo "$domain"
+}
+
+# Function to restore backup
+restore_backup() {
+    backup_file="$1"
+    domain="$2"
+    
+    # Define restoration path
+    web_root="/var/www/html"
+    restore_path="$web_root/$domain"
+
+    if [ ! -d "$restore_path" ]; then
+        echo "Creating directory: $restore_path"
+        mkdir -p "$restore_path"
+    fi
+
+    echo "Extracting backup to: $restore_path"
+    tar -xzf "$backup_file" -C "$restore_path"
+
+    # Restore database
+    db_file="$restore_path/db.sql"
+    if [ -f "$db_file" ]; then
+        echo "Enter MySQL database name for restoration:"
+        read db_name
+        echo "Restoring database..."
+        mysql -u root -p "$db_name" < "$db_file"
+        echo "Database restoration completed."
+    else
+        echo "No database file found in the backup."
+    fi
+
+    echo "Backup restoration for $domain completed successfully."
+}
+
+# Main script execution
+echo "Enter the backup file path:"
+read backup_path
+
+if [ ! -f "$backup_path" ]; then
+    echo "Backup file does not exist. Exiting..."
+    exit 1
+fi
+
+detected_domain=$(extract_domain "$backup_path")
+echo "Detected domain from backup: $detected_domain"
+echo "Is this correct? (y/n)"
+read confirmation
+
+if [[ "$confirmation" != "y" ]]; then
+    echo "Enter the correct domain:"
+    read detected_domain
+fi
+
+restore_backup "$backup_path" "$detected_domain"
