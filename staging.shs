@@ -1,0 +1,97 @@
+#!/bin/bash
+
+set -e  # Exit on error
+LOG_FILE="wp_migration.log"
+BACKUP_FILE="db_backup_$(date +%F_%H-%M-%S).sql"
+
+# Function to log messages
+log_message() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+# Function to generate a 4-digit random number
+generate_random_number() {
+    echo $((RANDOM % 9000 + 1000))
+}
+
+# Function to extract DB details from wp-config.php
+get_wp_config() {
+    log_message "🔍 Extracting database details from wp-config.php..."
+    DB_NAME=$(grep -oP "(?<=DB_NAME', ').*?(?=')" wp-config.php)
+    DB_USER=$(grep -oP "(?<=DB_USER', ').*?(?=')" wp-config.php)
+    DB_PASS=$(grep -oP "(?<=DB_PASSWORD', ').*?(?=')" wp-config.php)
+    DB_HOST=$(grep -oP "(?<=DB_HOST', ').*?(?=')" wp-config.php)
+    TABLE_PREFIX=$(grep -oP "(?<=\$table_prefix = ').*(?=')" wp-config.php)
+    
+    if [[ -z "$TABLE_PREFIX" ]]; then
+        TABLE_PREFIX="wp_"  # Default prefix
+    fi
+}
+
+# Confirm WordPress directory
+read -p "Enter the WordPress directory: " WP_DIR
+if [ ! -f "$WP_DIR/wp-config.php" ]; then
+    log_message "❌ Error: wp-config.php not found in $WP_DIR. Exiting."
+    exit 1
+fi
+cd "$WP_DIR"
+
+# Fetch WordPress details
+get_wp_config
+
+# Get current home and site URL
+OLD_HOME_URL=$(wp option get home --allow-root)
+OLD_SITE_URL=$(wp option get siteurl --allow-root)
+
+log_message "✅ Current WordPress URLs:"
+log_message "   Home URL: $OLD_HOME_URL"
+log_message "   Site URL: $OLD_SITE_URL"
+
+# Confirm the new URL
+read -p "Enter the new URL for the website: " NEW_URL
+
+# Backup database before making changes
+log_message "📦 Creating a database backup: $BACKUP_FILE..."
+mysqldump -u "$DB_USER" -p"$DB_PASS" -h "$DB_HOST" "$DB_NAME" > "$BACKUP_FILE"
+log_message "✅ Database backup completed."
+
+# Create a temporary MySQL user using cPanel UAPI
+log_message "🔧 Creating temporary database user..."
+DB_TMP_USER="$(whoami)_$(openssl rand -hex 4)"
+DB_TMP_PASS=$(openssl rand -base64 12)
+uapi Mysql create_user name="$DB_TMP_USER" password="$DB_TMP_PASS" >/dev/null 2>&1
+uapi Mysql set_privileges_on_database database="$DB_NAME" user="$DB_TMP_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+
+# Display current URLs from database before update
+log_message "📌 URLs from database before update:"
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+SELECT option_name, option_value FROM ${TABLE_PREFIX}options WHERE option_name IN ('siteurl', 'home');
+"
+
+# Updating URLs using MySQL Queries
+log_message "🚀 Updating URLs in the database..."
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+UPDATE ${TABLE_PREFIX}options SET option_value = '$NEW_URL' WHERE option_name IN ('siteurl', 'home');
+UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$OLD_HOME_URL', '$NEW_URL');
+UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$OLD_HOME_URL', '$NEW_URL');
+"
+
+# Use WP-CLI to update serialized data safely
+log_message "⚡ Running WP-CLI search-replace for deep updates..."
+wp search-replace "$OLD_HOME_URL" "$NEW_URL" --all-tables --allow-root --precise --recurse-objects | tee -a "$LOG_FILE"
+
+# Display updated URLs from database after update
+log_message "✅ URLs after update:"
+mysql -u "$DB_TMP_USER" -p"$DB_TMP_PASS" -D "$DB_NAME" -e "
+SELECT option_name, option_value FROM ${TABLE_PREFIX}options WHERE option_name IN ('siteurl', 'home');
+"
+
+# Cleanup: Remove the temporary MySQL user
+log_message "🧹 Removing temporary database user..."
+uapi Mysql delete_user name="$DB_TMP_USER" >/dev/null 2>&1
+log_message "✅ Temporary user removed."
+
+log_message "🎉 WordPress migration completed successfully!"
