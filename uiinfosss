@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Run UAPI command and store output
+OUTPUT=$(uapi Variables get_user_information)
+
+# Check if the command was successful
+if [ $? -ne 0 ]; then
+    echo -e "\e[31mError: Unable to fetch user information.\e[0m"
+    exit 1
+fi
+
+# Function to extract data
+extract_data() {
+    echo "$OUTPUT" | grep -Po "(?<=${1}: ).*"
+}
+
+# Extract all required details
+USER=$(extract_data "user")
+DOMAIN=$(extract_data "domain")
+CONTACT_EMAIL=$(extract_data "contact_email")
+CONTACT_EMAIL_2=$(extract_data "contact_email_2")
+IP=$(extract_data "ip")
+PLAN=$(extract_data "plan")
+CREATED_DATE=$(extract_data "created")
+DISK_LIMIT=$(extract_data "disk_block_limit")
+BANDWIDTH_LIMIT=$(extract_data "bandwidth_limit")
+MAX_ADDON_DOMAINS=$(extract_data "maximum_addon_domains")
+MAX_DATABASES=$(extract_data "maximum_databases")
+MAX_EMAILS=$(extract_data "maximum_mail_accounts")
+MAX_FTP=$(extract_data "maximum_ftp_accounts")
+MAX_SUBDOMAINS=$(extract_data "maximum_subdomains")
+BACKUP_ENABLED=$(extract_data "backup_enabled")
+DKIM_ENABLED=$(extract_data "dkim_enabled")
+SPF_ENABLED=$(extract_data "spf_enabled")
+SHELL=$(extract_data "shell")
+LOCALE=$(extract_data "locale")
+OWNER=$(extract_data "owner")
+THEME=$(extract_data "theme")
+UID=$(extract_data "uid")
+GID=$(extract_data "gid")
+UUID=$(extract_data "uuid")
+
+# Convert UNIX timestamp to readable format
+CREATED_DATE=$(date -d @${CREATED_DATE} 2>/dev/null || date -r ${CREATED_DATE})
+
+# Print formatted output with colors
+clear
+echo -e "\e[1;34m====================================="
+echo -e "       User Information Report"
+echo -e "=====================================\e[0m"
+echo -e "\e[1;33mUser:               \e[0m$USER"
+echo -e "\e[1;33mDomain:             \e[0m$DOMAIN"
+echo -e "\e[1;33mContact Email:      \e[0m$CONTACT_EMAIL"
+echo -e "\e[1;33mAlt Contact Email:  \e[0m$CONTACT_EMAIL_2"
+echo -e "\e[1;33mServer IP:          \e[0m$IP"
+echo -e "\e[1;33mHosting Plan:       \e[0m$PLAN"
+echo -e "\e[1;33mAccount Created:    \e[0m$CREATED_DATE"
+echo -e "\e[1;33mDisk Limit:         \e[0m$DISK_LIMIT"
+echo -e "\e[1;33mBandwidth Limit:    \e[0m$BANDWIDTH_LIMIT"
+echo -e "\e[1;33mMax Addon Domains:  \e[0m$MAX_ADDON_DOMAINS"
+echo -e "\e[1;33mMax Databases:      \e[0m$MAX_DATABASES"
+echo -e "\e[1;33mMax Emails:         \e[0m$MAX_EMAILS"
+echo -e "\e[1;33mMax FTP Accounts:   \e[0m$MAX_FTP"
+echo -e "\e[1;33mMax Subdomains:     \e[0m$MAX_SUBDOMAINS"
+echo -e "\e[1;33mBackup Enabled:     \e[0m$BACKUP_ENABLED"
+echo -e "\e[1;33mDKIM Enabled:       \e[0m$DKIM_ENABLED"
+echo -e "\e[1;33mSPF Enabled:        \e[0m$SPF_ENABLED"
+echo -e "\e[1;33mShell:              \e[0m$SHELL"
+echo -e "\e[1;33mLocale:             \e[0m$LOCALE"
+echo -e "\e[1;33mOwner:              \e[0m$OWNER"
+echo -e "\e[1;33mTheme:              \e[0m$THEME"
+echo -e "\e[1;33mUID:                \e[0m$UID"
+echo -e "\e[1;33mGID:                \e[0m$GID"
+echo -e "\e[1;33mUUID:               \e[0m$UUID"
+echo -e "\e[1;34m====================================="
