@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# Function to generate a 4-digit random number
+generate_random_number() {
+    echo $((RANDOM % 9000 + 1000))
+}
+
+# Welcome message
+echo "=============================================="
+echo "  Welcome to the Advanced Staging Creton Tool "
+echo "=============================================="
+echo ""
+echo "Staging is important because it allows you to test updates, new plugins, and changes without affecting your live website."
+echo "This tool will create a staging copy of your WordPress site for safe testing."
+echo ""
+
+# Ask user to enter WordPress installation path
+read -p "Enter the full path of your WordPress installation: " WP_PATH
+
+# Confirm WordPress installation
+if [[ ! -f "$WP_PATH/wp-config.php" ]]; then
+    echo "Error: No WordPress installation detected in $WP_PATH"
+    exit 1
+fi
+
+# Extract database credentials from wp-config.php
+DB_NAME=$(grep -oP "(?<=DB_NAME', ').*?(?=')" "$WP_PATH/wp-config.php")
+DB_USER=$(grep -oP "(?<=DB_USER', ').*?(?=')" "$WP_PATH/wp-config.php")
+DB_PASS=$(grep -oP "(?<=DB_PASSWORD', ').*?(?=')" "$WP_PATH/wp-config.php")
+SITE_URL=$(wp option get siteurl --path="$WP_PATH" 2>/dev/null)
+
+echo ""
+echo "======================================"
+echo "  WordPress Installation Details"
+echo "======================================"
+echo "Site URL      : $SITE_URL"
+echo "Database Name : $DB_NAME"
+echo "DB Username   : $DB_USER"
+echo "DB Password   : $DB_PASS"
+echo "======================================"
+
+# Confirm with the user before proceeding
+read -p "Do you want to create a staging site? (yes/no): " confirm
+if [[ "$confirm" != "yes" ]]; then
+    echo "Operation cancelled."
+    exit 1
+fi
+
+# Create staging directory
+STAGING_DIR="$WP_PATH/staging"
+mkdir -p "$STAGING_DIR"
+
+# Generate a unique 4-digit folder
+RANDOM_ID=$(generate_random_number)
+STAGING_SUBDIR="$STAGING_DIR/$RANDOM_ID"
+mkdir "$STAGING_SUBDIR"
+
+# Copy files excluding existing staging directories
+echo "Copying files to the staging site..."
+rsync -av --exclude='staging' "$WP_PATH/" "$STAGING_SUBDIR/" --quiet
+
+# Backup the original database
+mkdir -p ~/backup
+echo "Fetching available databases..."
+BACKUP_FILE=~/backup/"$DB_NAME"_$(date +"%Y%m%d_%H%M%S").sql
+
+if wp db export "$BACKUP_FILE" --path="$WP_PATH" 2>/dev/null; then
+    echo "Database backup completed using WP-CLI."
+else
+    USERNAME=$(whoami)
+    TEMP_DB_USER="${USERNAME}_$(openssl rand -hex 4)"
+    TEMP_DB_PASS=$(openssl rand -base64 12)
+    
+    echo "Creating temporary database user..."
+    uapi Mysql create_user name="$TEMP_DB_USER" password="$TEMP_DB_PASS" >/dev/null 2>&1
+    uapi Mysql set_privileges_on_database database="$DB_NAME" user="$TEMP_DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+    
+    echo "Starting backup using mysqldump, please wait..."
+    mysqldump -u "$TEMP_DB_USER" -p"$TEMP_DB_PASS" "$DB_NAME" > "$BACKUP_FILE" 2>/dev/null
+    
+    uapi Mysql delete_user name="$TEMP_DB_USER" >/dev/null 2>&1
+    echo "Temporary database user removed."
+fi
+
+# Create new database and user
+HOST_USER=$(whoami)
+NEW_DB_NAME="${HOST_USER}_db_$(date +%s)"
+NEW_DB_USER="${HOST_USER}_${NEW_DB_NAME}"
+NEW_DB_PASS=$(openssl rand -base64 12)
+
+uapi Mysql create_database name="$NEW_DB_NAME" >/dev/null 2>&1
+echo "Database $NEW_DB_NAME created."
+
+uapi Mysql create_user name="$NEW_DB_USER" password="$NEW_DB_PASS" >/dev/null 2>&1
+echo "User $NEW_DB_USER created."
+
+uapi Mysql set_privileges_on_database database="$NEW_DB_NAME" user="$NEW_DB_USER" privileges="ALL PRIVILEGES" >/dev/null 2>&1
+echo "Assigned privileges to $NEW_DB_USER on $NEW_DB_NAME."
+
+# Update wp-config.php in the staging directory
+sed -i "s/define('DB_NAME', .*/define('DB_NAME', '$NEW_DB_NAME');/" "$STAGING_SUBDIR/wp-config.php"
+sed -i "s/define('DB_USER', .*/define('DB_USER', '$NEW_DB_USER');/" "$STAGING_SUBDIR/wp-config.php"
+sed -i "s/define('DB_PASSWORD', .*/define('DB_PASSWORD', '$NEW_DB_PASS');/" "$STAGING_SUBDIR/wp-config.php"
+
+# Import backup into new database
+echo "Importing database backup into $NEW_DB_NAME..."
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" < "$BACKUP_FILE" 2>/dev/null && echo "Database import successful."
+
+echo "======================================"
+echo "  Staging Site Created Successfully!  "
+echo "======================================"
+echo "Path: $STAGING_SUBDIR"
+echo "Database: $NEW_DB_NAME"
+echo "DB User: $NEW_DB_USER"
+echo "DB Password: $NEW_DB_PASS"
+echo "Now you can test your changes safely."
