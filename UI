@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Run UAPI command and store output
+OUTPUT=$(uapi Variables get_user_information)
+
+# Check if the command was successful
+if [ $? -ne 0 ]; then
+    echo -e "\e[31mError: Unable to fetch user information.\e[0m"
+    exit 1
+fi
+
+# Function to extract data
+extract_data() {
+    echo "$OUTPUT" | grep -Po "(?<=${1}: ).*"
+}
+
+# Extract all required details
+USER=$(extract_data "user")
+DOMAIN=$(extract_data "domain")
+CONTACT_EMAIL=$(extract_data "contact_email")
+CONTACT_EMAIL_2=$(extract_data "contact_email_2")
+IP=$(extract_data "ip")
+PLAN=$(extract_data "plan")
+CREATED_DATE=$(extract_data "created")
+DISK_LIMIT=$(extract_data "disk_block_limit")
+BANDWIDTH_LIMIT=$(extract_data "bandwidth_limit")
+MAX_ADDON_DOMAINS=$(extract_data "maximum_addon_domains")
+MAX_DATABASES=$(extract_data "maximum_databases")
+MAX_EMAILS=$(extract_data "maximum_mail_accounts")
+MAX_FTP=$(extract_data "maximum_ftp_accounts")
+MAX_SUBDOMAINS=$(extract_data "maximum_subdomains")
+BACKUP_ENABLED=$(extract_data "backup_enabled")
+DKIM_ENABLED=$(extract_data "dkim_enabled")
+SPF_ENABLED=$(extract_data "spf_enabled")
+SHELL=$(extract_data "shell")
+LOCALE=$(extract_data "locale")
+OWNER=$(extract_data "owner")
+THEME=$(extract_data "theme")
+UID=$(extract_data "uid")
+GID=$(extract_data "gid")
+UUID=$(extract_data "uuid")
+
+# Convert UNIX timestamp to readable format
+CREATED_DATE=$(date -d @${CREATED_DATE} 2>/dev/null || date -r ${CREATED_DATE})
+
+# Print formatted table output with colors
+clear
+echo -e "\e[1;34m================================================="
+echo -e "\e[1;37;44m          User Information Report              \e[0m"
+echo -e "\e[1;34m================================================="
+echo -e "\e[1;37m| %-20s | %-30s |\e[0m" "Field" "Value"
+echo -e "\e[1;34m-------------------------------------------------\e[0m"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "User" "$USER"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Domain" "$DOMAIN"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Contact Email" "$CONTACT_EMAIL"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Alt Contact Email" "$CONTACT_EMAIL_2"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Server IP" "$IP"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Hosting Plan" "$PLAN"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Account Created" "$CREATED_DATE"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Disk Limit" "$DISK_LIMIT"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Bandwidth Limit" "$BANDWIDTH_LIMIT"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Max Addon Domains" "$MAX_ADDON_DOMAINS"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Max Databases" "$MAX_DATABASES"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Max Emails" "$MAX_EMAILS"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Max FTP Accounts" "$MAX_FTP"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Max Subdomains" "$MAX_SUBDOMAINS"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Backup Enabled" "$BACKUP_ENABLED"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "DKIM Enabled" "$DKIM_ENABLED"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "SPF Enabled" "$SPF_ENABLED"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Shell" "$SHELL"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Locale" "$LOCALE"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Owner" "$OWNER"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "Theme" "$THEME"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "UID" "$UID"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "GID" "$GID"
+echo -e "\e[1;33m| %-20s | %-30s |\e[0m" "UUID" "$UUID"
+echo -e "\e[1;34m================================================="
