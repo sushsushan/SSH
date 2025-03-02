@@ -34,6 +34,13 @@ if [[ -z "$SITE_URL" ]]; then
     exit 1
 fi
 
+TABLE_PREFIX=$(wp db prefix --path="$WP_PATH" 2>/dev/null)
+
+if [[ -z "$TABLE_PREFIX" ]]; then
+    echo "Error: Unable to fetch table prefix. Ensure WP-CLI is installed and working."
+    exit 1
+fi
+
 echo ""
 echo "======================================"
 echo "  WordPress Installation Details"
@@ -42,6 +49,7 @@ echo "Site URL      : $SITE_URL"
 echo "Database Name : $DB_NAME"
 echo "DB Username   : $DB_USER"
 echo "DB Password   : $DB_PASS"
+echo "Table Prefix  : $TABLE_PREFIX"
 echo "======================================"
 
 # Confirm with the user before proceeding
@@ -114,23 +122,14 @@ mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" < "$BACKUP_FILE" 2>/dev/
 # Replace site URL in the database
 STAGING_URL="${SITE_URL}/staging/$RANDOM_ID"
 echo "Updating site URL in the staging database..."
-wp search-replace "$SITE_URL" "$STAGING_URL" --path="$STAGING_SUBDIR" --all-tables --precise --quiet && echo "Site URL updated to $STAGING_URL"
 
-# Verify URL update
-echo "Verifying URL update..."
-UPDATED_URL=$(wp option get siteurl --path="$STAGING_SUBDIR" 2>/dev/null)
-if [[ "$UPDATED_URL" == "$STAGING_URL" ]]; then
-    echo "Site URL successfully updated to: $UPDATED_URL"
-else
-    echo "Warning: Site URL update might have failed. Please check manually."
-fi
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" -e "UPDATE ${TABLE_PREFIX}options SET option_value = '$STAGING_URL' WHERE option_name IN ('siteurl', 'home');"
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" -e "UPDATE ${TABLE_PREFIX}posts SET guid = REPLACE(guid, '$SITE_URL', '$STAGING_URL');"
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" -e "UPDATE ${TABLE_PREFIX}posts SET post_content = REPLACE(post_content, '$SITE_URL', '$STAGING_URL');"
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" -e "UPDATE ${TABLE_PREFIX}postmeta SET meta_value = REPLACE(meta_value, '$SITE_URL', '$STAGING_URL');"
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" -e "UPDATE ${TABLE_PREFIX}comments SET comment_content = REPLACE(comment_content, '$SITE_URL', '$STAGING_URL');"
+mysql -u "$NEW_DB_USER" -p"$NEW_DB_PASS" "$NEW_DB_NAME" -e "UPDATE ${TABLE_PREFIX}comments SET comment_author_url = REPLACE(comment_author_url, '$SITE_URL', '$STAGING_URL');"
 
 echo "======================================"
 echo "  Staging Site Created Successfully!  "
 echo "======================================"
-echo "Path: $STAGING_SUBDIR"
-echo "URL: $STAGING_URL"
-echo "Database: $NEW_DB_NAME"
-echo "DB User: $NEW_DB_USER"
-echo "DB Password: $NEW_DB_PASS"
-echo "Now you can test your changes safely."
