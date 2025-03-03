@@ -12,23 +12,21 @@ fi
 # Fetch domain information from cPanel UAPI
 DOMAIN_INFO=$(uapi DomainInfo domains_data)
 
-# Extract relevant domain block using awk
+# Extract the exact block for the provided domain (not similar or alias)
 DOMAIN_BLOCK=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
     BEGIN { found=0 }
-    /domain:/ {
-        if ($2 == domain) { found=1 }
-        else { found=0 }
-    }
+    $0 ~ "domain: " domain "$" { found=1 }
+    found && NF==0 { exit }
     found { print }
 ')
 
-# Check if domain was found
+# Check if an exact match was found
 if [ -z "$DOMAIN_BLOCK" ]; then
-    echo "Error: Domain not found."
+    echo "Error: Domain '$DOMAIN_NAME' not found."
     exit 1
 fi
 
-# Extract specific details
+# Extract specific details (only for the exact domain)
 DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/documentroot:/ {print $2}' | xargs)
 HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/homedir:/ {print $2}' | xargs)
 IP=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/ip:/ {print $2}' | xargs)
