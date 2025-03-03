@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Prompt the user for the domain name
+read -p "Enter the domain name: " DOMAIN_NAME
+
+# Check if input is empty
+if [ -z "$DOMAIN_NAME" ]; then
+    echo "Error: No domain name provided."
+    exit 1
+fi
+
+# Fetch domain information from cPanel UAPI
+DOMAIN_INFO=$(uapi DomainInfo domains_data)
+
+# Extract relevant domain block using awk
+DOMAIN_BLOCK=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
+    BEGIN { found=0 }
+    /domain:/ {
+        if ($2 == domain) { found=1 }
+        else { found=0 }
+    }
+    found { print }
+')
+
+# Check if domain was found
+if [ -z "$DOMAIN_BLOCK" ]; then
+    echo "Error: Domain not found."
+    exit 1
+fi
+
+# Extract specific details
+DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk '/documentroot:/ {print $2}')
+HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk '/homedir:/ {print $2}')
+IP=$(echo "$DOMAIN_BLOCK" | awk '/ip:/ {print $2}')
+TYPE=$(echo "$DOMAIN_BLOCK" | awk '/type:/ {print $2}')
+USER=$(echo "$DOMAIN_BLOCK" | awk '/user:/ {print $2}')
+
+# Display extracted details
+echo "-------------------------"
+echo "Document Root: $DOCUMENT_ROOT"
+echo "Domain: $DOMAIN_NAME"
+echo "Home Directory: $HOMEDIR"
+echo "IP Address: $IP"
+echo "Type: $TYPE"
+echo "User: $USER"
+echo "-------------------------"
+
+# Check if the document root exists before listing contents
+if [ -d "$DOCUMENT_ROOT" ]; then
+    echo "Listing contents of $DOCUMENT_ROOT:"
+    ls -lah "$DOCUMENT_ROOT"
+else
+    echo "Error: Document root directory does not exist."
+    exit 1
+fi
