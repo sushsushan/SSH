@@ -15,10 +15,10 @@ SERVER=$(hostname)
 DATE_TIME=$(date)
 
 clear
-echo -e "${GREEN}Welcome to the Backup Tool${RESET}"
-echo -e "User: ${CYAN}$USER${RESET}"
-echo -e "Server: ${CYAN}$SERVER${RESET}"
-echo -e "Date & Time: ${CYAN}$DATE_TIME${RESET}"
+printf "${GREEN}%-40s${RESET}\n" "Welcome to the Backup Tool"
+printf "%-20s${CYAN}%s${RESET}\n" "User:" "$USER"
+printf "%-20s${CYAN}%s${RESET}\n" "Server:" "$SERVER"
+printf "%-20s${CYAN}%s${RESET}\n" "Date & Time:" "$DATE_TIME"
 echo
 
 # Variables to store previous responses
@@ -38,12 +38,12 @@ while true; do
 
     while true; do
         echo -e "\n${YELLOW}Choose an option:${RESET}"
-        echo "1) Confirm files"
-        echo "2) View file"
-        echo "3) Restore website"
-        echo "4) Restore database"
-        echo "5) Full restore"
-        echo "6) Exit"
+        printf " %-5s %s\n" "1)" "Confirm files"
+        printf " %-5s %s\n" "2)" "View file"
+        printf " %-5s %s\n" "3)" "Restore website"
+        printf " %-5s %s\n" "4)" "Restore database"
+        printf " %-5s %s\n" "5)" "Full restore"
+        printf " %-5s %s\n" "6)" "Exit"
         read -p "Enter your choice: " OPTION
 
         case $OPTION in
@@ -155,7 +155,7 @@ while true; do
         clear
         echo -e "\n${GREEN}Generated commands:${RESET}"
         for cmd in "${RESULT_COMMANDS[@]}"; do
-            echo "$cmd"
+            printf " %s\n" "$cmd"
         done
 
         echo -e "\n${YELLOW}Do you want to choose another option? (y/n)${RESET}"
