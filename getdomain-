@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Prompt the user for the domain name
+read -p "Enter the domain name: " DOMAIN_NAME
+
+# Check if input is empty
+if [ -z "$DOMAIN_NAME" ]; then
+    echo -e "\e[31mError:\e[0m No domain name provided."
+    exit 1
+fi
+
+# Fetch domain information from cPanel UAPI
+DOMAIN_INFO=$(uapi DomainInfo domains_data)
+
+# Extract the document root using awk
+DOCUMENT_ROOT=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
+    $0 ~ "domain: " domain {
+        getline;
+        if ($1 == "documentroot:") print $2
+    }')
+
+# Extract additional details
+HOMEDIR=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
+    $0 ~ "domain: " domain {
+        while (getline) {
+            if ($1 == "homedir:") { print $2; exit }
+        }
+    }')
+
+IP=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
+    $0 ~ "domain: " domain {
+        while (getline) {
+            if ($1 == "ip:") { print $2; exit }
+        }
+    }')
+
+TYPE=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
+    $0 ~ "domain: " domain {
+        while (getline) {
+            if ($1 == "type:") { print $2; exit }
+        }
+    }')
+
+USER=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
+    $0 ~ "domain: " domain {
+        while (getline) {
+            if ($1 == "user:") { print $2; exit }
+        }
+    }')
+
+# Check if document root is retrieved
+if [ -z "$DOCUMENT_ROOT" ]; then
+    echo -e "\e[31mError:\e[0m Domain not found or no document root available."
+    exit 1
+fi
+
+# Display extracted details with colors for better readability
+echo -e "\e[34m-------------------------\e[0m"
+echo -e "\e[33mdocumentroot:\e[0m \e[32m$DOCUMENT_ROOT\e[0m"
+echo -e "\e[33mdomain:\e[0m \e[32m$DOMAIN_NAME\e[0m"
+echo -e "\e[33mhomedir:\e[0m \e[32m$HOMEDIR\e[0m"
+echo -e "\e[33mip:\e[0m \e[32m$IP\e[0m"
+echo -e "\e[33mtype:\e[0m \e[32m$TYPE\e[0m"
+echo -e "\e[33muser:\e[0m \e[32m$USER\e[0m"
+echo -e "\e[34m-------------------------\e[0m"
+
+# Check if the document root exists before listing contents
+if [ -d "$DOCUMENT_ROOT" ]; then
+    echo -e "\e[34mListing contents of $DOCUMENT_ROOT:\e[0m"
+    ls --color=auto -lah "$DOCUMENT_ROOT"
+else
+    echo -e "\e[31mError:\e[0m Document root directory does not exist."
+    exit 1
+fi
