@@ -29,15 +29,15 @@ if [ -z "$DOMAIN_BLOCK" ]; then
 fi
 
 # Extract specific details
-DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk '/documentroot:/ {print $2}')
-HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk '/homedir:/ {print $2}')
-IP=$(echo "$DOMAIN_BLOCK" | awk '/ip:/ {print $2}')
-TYPE=$(echo "$DOMAIN_BLOCK" | awk '/type:/ {print $2}')
-USER=$(echo "$DOMAIN_BLOCK" | awk '/user:/ {print $2}')
+DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/documentroot:/ {print $2}' | xargs)
+HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/homedir:/ {print $2}' | xargs)
+IP=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/ip:/ {print $2}' | xargs)
+TYPE=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/type:/ {print $2}' | xargs)
+USER=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/user:/ {print $2}' | xargs)
 
-# Display extracted details
+# Debug extracted data
 echo "-------------------------"
-echo "Document Root: $DOCUMENT_ROOT"
+echo "Extracted Document Root: '$DOCUMENT_ROOT'"
 echo "Domain: $DOMAIN_NAME"
 echo "Home Directory: $HOMEDIR"
 echo "IP Address: $IP"
@@ -47,9 +47,10 @@ echo "-------------------------"
 
 # Check if the document root exists before listing contents
 if [ -d "$DOCUMENT_ROOT" ]; then
-    echo "Listing contents of $DOCUMENT_ROOT:"
+    echo "Directory exists: $DOCUMENT_ROOT"
     ls -lah "$DOCUMENT_ROOT"
 else
-    echo "Error: Document root directory does not exist."
+    echo "Error: Document root directory does not exist or is not accessible."
+    echo "Check cPanel settings or verify directory permissions."
     exit 1
 fi
