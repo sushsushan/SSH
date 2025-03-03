@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Check if domain name is provided
-if [ -z "$1" ]; then
-    echo "Usage: $0 <domain_name>"
+# Prompt the user for the domain name
+read -p "Enter the domain name: " DOMAIN_NAME
+
+# Check if input is empty
+if [ -z "$DOMAIN_NAME" ]; then
+    echo "Error: No domain name provided."
     exit 1
 fi
-
-DOMAIN_NAME="$1"
 
 # Fetch domain information from cPanel UAPI
 DOMAIN_INFO=$(uapi DomainInfo domains_data | grep -A 20 "domain: $DOMAIN_NAME")
@@ -25,12 +26,14 @@ if [ -z "$DOCUMENT_ROOT" ]; then
 fi
 
 # Display extracted details
+echo "-------------------------"
 echo "documentroot: $DOCUMENT_ROOT"
 echo "domain: $DOMAIN_NAME"
 echo "homedir: $HOMEDIR"
 echo "ip: $IP"
 echo "type: $TYPE"
 echo "user: $USER"
+echo "-------------------------"
 
 # Check if the document root exists before listing contents
 if [ -d "$DOCUMENT_ROOT" ]; then
