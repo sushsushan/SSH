@@ -15,7 +15,7 @@ DOMAIN_INFO=$(uapi DomainInfo domains_data)
 # Extract the exact block for the provided domain (not similar or alias)
 DOMAIN_BLOCK=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
     BEGIN { found=0 }
-    $0 ~ "domain: " domain "$" { found=1 }
+    $0 ~ "^ *domain: " domain "$" { found=1 }
     found && NF==0 { exit }
     found { print }
 ')
@@ -26,12 +26,12 @@ if [ -z "$DOMAIN_BLOCK" ]; then
     exit 1
 fi
 
-# Extract specific details (only for the exact domain)
-DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/documentroot:/ {print $2}' | xargs)
-HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/homedir:/ {print $2}' | xargs)
-IP=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/ip:/ {print $2}' | xargs)
-TYPE=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/type:/ {print $2}' | xargs)
-USER=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/user:/ {print $2}' | xargs)
+# Extract specific details (ensuring only a single value is taken)
+DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/documentroot:/ {print $2; exit}' | xargs)
+HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/homedir:/ {print $2; exit}' | xargs)
+IP=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/ip:/ {print $2; exit}' | xargs)
+TYPE=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/type:/ {print $2; exit}' | xargs)
+USER=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/user:/ {print $2; exit}' | xargs)
 
 # Debug extracted data
 echo "-------------------------"
