@@ -1,0 +1,44 @@
+#!/bin/bash
+
+echo "Welcome to the script generator for awk and sed commands!"
+echo "Choose your search type:"
+echo "1. Search with awk"
+echo "2. Search with sed"
+echo "3. Exit"
+
+read -p "Enter your choice: " choice
+
+case $choice in
+  1)
+    echo "You chose 'awk'."
+    read -p "Enter the file name to search in: " filename
+    read -p "Enter the field/column number for search (e.g., 1 for first column): " field
+    read -p "Enter the search pattern: " pattern
+    read -p "Enter the action (print for printing the field): " action
+
+    if [ "$action" == "print" ]; then
+        echo "Generated awk command: awk '{print \$$field}' $filename"
+    else
+        echo "Action not recognized, try again with 'print'."
+    fi
+    ;;
+  2)
+    echo "You chose 'sed'."
+    read -p "Enter the file name to search in: " filename
+    read -p "Enter the search pattern: " pattern
+    read -p "Enter the replacement text (leave empty if just search): " replacement
+
+    if [ -z "$replacement" ]; then
+        echo "Generated sed command for search only: sed -n '/$pattern/p' $filename"
+    else
+        echo "Generated sed command for search and replace: sed -i 's/$pattern/$replacement/g' $filename"
+    fi
+    ;;
+  3)
+    echo "Exiting script. Goodbye!"
+    exit 0
+    ;;
+  *)
+    echo "Invalid choice, please choose 1 or 2."
+    ;;
+esac
