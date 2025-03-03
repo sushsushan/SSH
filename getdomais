@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Define color codes
+RED='\033[0;31m'         # Red (Errors)
+GREEN='\033[0;32m'       # Green (Success)
+YELLOW='\033[1;33m'      # Yellow (Headers)
+BLUE='\033[0;34m'        # Blue (Values)
+CYAN='\033[1;36m'        # Cyan (Commands)
+RESET='\033[0m'          # Reset color
+
+# Prompt the user for the domain name
+echo -e "${YELLOW}Enter the domain name:${RESET}"
+read -r DOMAIN_NAME
+
+# Check if input is empty
+if [ -z "$DOMAIN_NAME" ]; then
+    echo -e "${RED}Error: No domain name provided.${RESET}"
+    exit 1
+fi
+
+# Fetch domain information from cPanel UAPI
+DOMAIN_INFO=$(uapi DomainInfo domains_data | grep -A 20 "domain: $DOMAIN_NAME")
+
+# Extract required details
+DOCUMENT_ROOT=$(echo "$DOMAIN_INFO" | awk '/documentroot:/ {print $2}')
+HOMEDIR=$(echo "$DOMAIN_INFO" | awk '/homedir:/ {print $2}')
+IP=$(echo "$DOMAIN_INFO" | awk '/ip:/ {print $2}')
+TYPE=$(echo "$DOMAIN_INFO" | awk '/type:/ {print $2}')
+USER=$(echo "$DOMAIN_INFO" | awk '/user:/ {print $2}')
+
+# Check if document root is retrieved
+if [ -z "$DOCUMENT_ROOT" ]; then
+    echo -e "${RED}Error: Domain not found or no document root available.${RESET}"
+    exit 1
+fi
+
+# Display extracted details with colors
+echo -e "${CYAN}-----------------------------------------${RESET}"
+echo -e "${YELLOW}documentroot:${RESET} ${BLUE}$DOCUMENT_ROOT${RESET}"
+echo -e "${YELLOW}domain:${RESET} ${BLUE}$DOMAIN_NAME${RESET}"
+echo -e "${YELLOW}homedir:${RESET} ${BLUE}$HOMEDIR${RESET}"
+echo -e "${YELLOW}ip:${RESET} ${BLUE}$IP${RESET}"
+echo -e "${YELLOW}type:${RESET} ${BLUE}$TYPE${RESET}"
+echo -e "${YELLOW}user:${RESET} ${BLUE}$USER${RESET}"
+echo -e "${CYAN}-----------------------------------------${RESET}"
+
+# Check if the document root exists before listing contents
+if [ -d "$DOCUMENT_ROOT" ]; then
+    echo -e "${GREEN}Listing contents of $DOCUMENT_ROOT:${RESET}"
+    echo -e "${CYAN}-----------------------------------------${RESET}"
+    
+    # List files with colors (directories, files, symlinks)
+    ls --color=auto -lah "$DOCUMENT_ROOT"
+    
+    echo -e "${CYAN}-----------------------------------------${RESET}"
+else
+    echo -e "${RED}Error: Document root directory does not exist.${RESET}"
+    exit 1
+fi
