@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Check if domain name is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <domain_name>"
+    exit 1
+fi
+
+DOMAIN_NAME="$1"
+
+# Fetch domain information from cPanel UAPI
+DOMAIN_INFO=$(uapi DomainInfo domains_data | grep -A 20 "domain: $DOMAIN_NAME")
+
+# Extract required details
+DOCUMENT_ROOT=$(echo "$DOMAIN_INFO" | awk '/documentroot:/ {print $2}')
+HOMEDIR=$(echo "$DOMAIN_INFO" | awk '/homedir:/ {print $2}')
+IP=$(echo "$DOMAIN_INFO" | awk '/ip:/ {print $2}')
+TYPE=$(echo "$DOMAIN_INFO" | awk '/type:/ {print $2}')
+USER=$(echo "$DOMAIN_INFO" | awk '/user:/ {print $2}')
+
+# Check if document root is retrieved
+if [ -z "$DOCUMENT_ROOT" ]; then
+    echo "Error: Domain not found or no document root available."
+    exit 1
+fi
+
+# Display extracted details
+echo "documentroot: $DOCUMENT_ROOT"
+echo "domain: $DOMAIN_NAME"
+echo "homedir: $HOMEDIR"
+echo "ip: $IP"
+echo "type: $TYPE"
+echo "user: $USER"
+
+# Check if the document root exists before listing contents
+if [ -d "$DOCUMENT_ROOT" ]; then
+    echo "Listing contents of $DOCUMENT_ROOT:"
+    ls -lah "$DOCUMENT_ROOT"
+else
+    echo "Error: Document root directory does not exist."
+    exit 1
+fi
