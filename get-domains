@@ -15,7 +15,7 @@ DOMAIN_INFO=$(uapi DomainInfo domains_data)
 # Extract the exact block for the provided domain (not similar or alias)
 DOMAIN_BLOCK=$(echo "$DOMAIN_INFO" | awk -v domain="$DOMAIN_NAME" '
     BEGIN { found=0 }
-    $0 ~ "^ *domain: " domain "$" { found=1 }
+    $0 ~ "^[ \t]*domain:[ \t]*" domain "$" { found=1 }
     found && NF==0 { exit }
     found { print }
 ')
@@ -26,7 +26,7 @@ if [ -z "$DOMAIN_BLOCK" ]; then
     exit 1
 fi
 
-# Extract specific details (ensuring only a single value is taken)
+# Extract specific details, ensuring only a single value is taken
 DOCUMENT_ROOT=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/documentroot:/ {print $2; exit}' | xargs)
 HOMEDIR=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/homedir:/ {print $2; exit}' | xargs)
 IP=$(echo "$DOMAIN_BLOCK" | awk -F': ' '/ip:/ {print $2; exit}' | xargs)
@@ -43,7 +43,7 @@ echo "Type: $TYPE"
 echo "User: $USER"
 echo "-------------------------"
 
-# Check if the document root exists before listing contents
+# Validate the extracted document root directory before accessing it
 if [ -d "$DOCUMENT_ROOT" ]; then
     echo "Directory exists: $DOCUMENT_ROOT"
     ls -lah "$DOCUMENT_ROOT"
