@@ -4,6 +4,9 @@
 echo -n "Enter account number: "
 read accountNumber
 
+# Ensure HAL command runs in the correct environment
+export PATH=$PATH:/usr/local/bin  # Modify this if HAL is located elsewhere
+
 # Run the initial HAL command to fetch data
 output=$(hal addon_list tenant_back_ref "$accountNumber" brand bluehost/hostgator order_by account_id select id,type,status,account_id,account_username,server_hostname,server_id,meta_domain,back_reference | sed 's/^[ \t]*//;s/[ \t]*$//')
 
@@ -14,7 +17,8 @@ server_hostname=$(echo "$output" | awk 'NR>1 {print $6; exit}')  # Assuming serv
 if [[ "$server_hostname" == box*.bluehost.com ]]; then
     brand="bluehost"
 elif [[ "$server_hostname" == gator*.hostgator.com ]]; then
-    brand="hostgator"\else
+    brand="hostgator"
+else
     echo "Unknown server hostname format: $server_hostname"
     exit 1
 fi
