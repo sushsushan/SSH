@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Prompt for user input
+read -p "Enter account number: " accountNumber
+read -p "Enter brand (bh for Bluehost, hg for HostGator): " brand
+
+# Validate brand input
+[[ "$brand" != "bh" && "$brand" != "hg" ]] && { echo "Invalid brand. Use 'bh' or 'hg'"; exit 1; }
+
+# Set brand name
+brandName=$( [[ "$brand" == "bh" ]] && echo "bluehost" || echo "hostgator" )
+
+# Run the HAL command to get the server hostnames
+halOutput=$(hal addon_list tenant_back_ref ${accountNumber} brand ${brandName} order_by account_id select id,type,status,account_id,account_username,server_hostname,server_id,meta_domain,back_reference | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+# Extract source and destination server hostnames (assuming they appear in fixed positions)
+sourceServer=$(echo "$halOutput" | awk '{print $7}' | head -1)   # Adjust based on actual column number
+destinationServer=$(echo "$halOutput" | awk '{print $7}' | tail -1)  # Adjust as needed
+
+# Placeholder server
+placeholderServer="box5155.bluehost.com"
+
+# Generate final command
+finalCommand="for i in {${sourceServer},${destinationServer},${placeholderServer}}; do hal server_list hostname \${i} select id,hostname,primary_ip; done"
+
+# Output final command
+echo "Generated Command:"
+echo "$finalCommand"
