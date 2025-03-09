@@ -35,3 +35,35 @@ echo -e "\n"
 echo -e "\e[1;36m              ✨ TWO EYES, ONE VISION ✨\e[0m"
 echo -e "\e[1;32m            🌟 SEE THE WORLD IN 3D 🌟\e[0m"
 echo -e "\n"
+
+
+#!/bin/bash
+
+# Define Colors
+black_bg="\e[40m"       # Black Background
+reset="\e[0m"          # Reset Colors
+white="\e[97m█$black_bg" # White for Eyes
+blue="\e[34m█$black_bg"  # Blue for Iris
+black="\e[30m█$black_bg" # Black for Pupil
+space="  "             # Space for alignment
+
+# Clear the screen
+clear
+
+# Apply Black Background
+echo -e "$black_bg"
+
+# Creating Two Eyes with Black Background
+echo -e "$space$space$space$space$space$space$space$space$space$space$space$space$white$white$white$white$white$space$space$space$space$space$space$space$space$space$space$space$space$white$white$white$white$white"
+echo -e "$space$space$space$space$space$space$space$space$space$space$space$space$white$blue$blue$blue$white$space$space$space$space$space$space$space$space$space$space$space$space$white$blue$blue$blue$white"
+echo -e "$space$space$space$space$space$space$space$space$space$space$space$space$white$blue$black$blue$white$space$space$space$space$space$space$space$space$space$space$space$space$white$blue$black$blue$white"
+echo -e "$space$space$space$space$space$space$space$space$space$space$space$space$white$blue$blue$blue$white$space$space$space$space$space$space$space$space$space$space$space$space$white$blue$blue$blue$white"
+echo -e "$space$space$space$space$space$space$space$space$space$space$space$space$white$white$white$white$white$space$space$space$space$space$space$space$space$space$space$space$space$white$white$white$white$white"
+
+# Reset Colors
+echo -e "$reset"
+
+# Bold Crazy Message
+echo -e "\e[1;35m             👀 CRAZY VISION 👀\e[0m"
+echo -e "\e[1;32m         🔥 EYES ON THE FUTURE 🔥\e[0m"
+echo -e "\n"
