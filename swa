@@ -8,7 +8,7 @@ read accountNumber
 output=$(hal addon_list tenant_back_ref "$accountNumber" brand bluehost/hostgator order_by account_id select id,type,status,account_id,account_username,server_hostname,server_id,meta_domain,back_reference | sed 's/^[ \t]*//;s/[ \t]*$//')
 
 # Extract server_hostname from the output
-server_hostname=$(echo "$output" | awk '{print $7}')  # Assuming server_hostname is the 7th column
+server_hostname=$(echo "$output" | awk 'NR>1 {print $6; exit}')  # Assuming server_hostname is the 6th column and skipping the header
 
 # Determine the brand based on server_hostname
 if [[ "$server_hostname" == box*.bluehost.com ]]; then
