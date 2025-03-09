@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Function to find 'hal' if it's not in $PATH
+find_hal_command() {
+    HAL_CMD=$(which hal 2>/dev/null)
+    
+    if [ -z "$HAL_CMD" ]; then
+        echo "hal command not found in PATH. Searching for it..."
+        HAL_CMD=$(find / -type f -name "hal" 2>/dev/null | head -n 1)
+        
+        if [ -z "$HAL_CMD" ]; then
+            echo "Error: 'hal' command not found. Please install it or provide the correct path."
+            exit 1
+        else
+            echo "Found hal at: $HAL_CMD"
+        fi
+    fi
+}
+
+# Check if hal exists and get its path
+find_hal_command
+
+# Load user profile if hal is not recognized in non-interactive shells
+source ~/.bashrc 2>/dev/null || source ~/.bash_profile 2>/dev/null
+
+# Prompt user for account number
+read -p "Enter Account Number: " accountNumber
+
+# Prompt user for brand selection
+while true; do
+    read -p "Choose brand (bh for Bluehost, hg for HostGator): " brandInput
+    case "$brandInput" in
+        bh) brand="bluehost"; break ;;
+        hg) brand="hostgator"; break ;;
+        *) echo "Invalid choice. Please enter 'bh' for Bluehost or 'hg' for HostGator." ;;
+    esac
+done
+
+# Run the command with the selected brand
+"$HAL_CMD" addon_list tenant_back_ref "${accountNumber}" brand "${brand}" order_by account_id \
+    select id,type,status,account_id,account_username,server_hostname,server_id,meta_domain,back_reference | \
+    sed 's/^[ \t]*//;s/[ \t]*$//'
