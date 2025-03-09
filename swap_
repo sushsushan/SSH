@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Prompt user for account number
+echo -n "Enter Account Number: "
+read accountNumber
+
+# Run hal addon_list command and process the output
+hal addon_list tenant_back_ref "$accountNumber" brand bluehost/hostgator order_by account_id select \
+    id,type,status,account_id,account_username,server_hostname,server_id,meta_domain,back_reference | \
+    sed 's/^[ \t]*//;s/[ \t]*$//' | while read -r id account_id account_username back_reference meta_domain server_hostname server_id status type; do
+    
+    # Determine brand based on server hostname
+    if [[ $server_hostname == box*.bluehost.com ]]; then
+        brand="bluehost"
+    elif [[ $server_hostname == gator*.hostgator.com ]]; then
+        brand="hostgator"
+    else
+        brand="unknown"
+    fi
+    
+    # Print processed output
+    echo "$id $account_id $account_username $back_reference $meta_domain $server_hostname $server_id $status $type $brand"
+done
