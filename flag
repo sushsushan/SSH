@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Colors
+orange="\e[48;5;208m  \e[0m"   # Saffron (Top)
+white="\e[48;5;15m  \e[0m"     # White (Middle)
+green="\e[48;5;28m  \e[0m"     # Green (Bottom)
+blue="\e[34m●\e[0m"           # Ashoka Chakra (Center)
+shadow="\e[48;5;236m  \e[0m"   # Shadow for 3D effect
+
+# Clear the screen
+clear
+
+# Displaying the Flag with 3D effect
+echo -e "\n"
+for i in {1..4}; do
+  echo -e "     $orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$orange$shadow"
+done
+for i in {1..2}; do
+  echo -e "     $white$white$white$white$white$white$white$white$blue$white$white$white$white$white$white$white$shadow"
+done
+for i in {1..4}; do
+  echo -e "     $green$green$green$green$green$green$green$green$green$green$green$green$green$green$green$green$shadow"
+done
+
+# Printing Ashoka Chakra design (Simplified)
+echo -e "\n        \e[34m⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫ ⚫\e[0m\n"
+
+# Final message with 3D effect
+echo -e "\n\e[1;33m          🇮🇳  JAI HIND!  🇮🇳\e[0m\n"
+
