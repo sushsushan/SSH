@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Define Colors
+red="\e[31m█\e[0m"       # Red Shade for eyes
+yellow="\e[33m█\e[0m"    # Yellow for the center of the eyes
+blue="\e[34m█\e[0m"      # Blue for the glowing effect
+green="\e[32m█\e[0m"     # Green for shading
+white="\e[37m█\e[0m"     # White for background
+shadow="\e[90m█\e[0m"    # Shadow Effect
+space=" "                # Space for alignment
+
+# Set background to black
+clear
+echo -e "\e[40m"  # Set terminal background to black
+
+# Print the Design with Two Eyes
+echo -e "\n\n"
+echo -e "                         $shadow$shadow$shadow$shadow$shadow$shadow$shadow$shadow$shadow$shadow$shadow"
+echo -e "                    $shadow$red$red$red$red$red$red$red$red$red$red$red$red$red$red$red$red$shadow"
+echo -e "                 $shadow$red$red$red$yellow$yellow$yellow$yellow$yellow$yellow$yellow$yellow$yellow$red$red$red$shadow"
+echo -e "              $shadow$red$red$yellow$yellow$blue$blue$blue$blue$blue$blue$blue$blue$yellow$yellow$red$red$shadow"
+echo -e "            $shadow$red$yellow$blue$blue$green$green$green$green$green$green$green$green$blue$blue$yellow$red$shadow"
+echo -e "          $shadow$red$yellow$blue$green$green$green$green$green$green$green$green$blue$blue$yellow$red$red$shadow"
+echo -e "        $shadow$red$yellow$blue$blue$green$green$green$green$green$green$green$green$blue$blue$yellow$red$shadow"
+echo -e "     $shadow$red$yellow$blue$blue$blue$green$green$green$green$green$green$blue$blue$blue$yellow$red$red$shadow"
+echo -e "    $shadow$red$yellow$yellow$blue$blue$blue$green$green$green$green$blue$blue$blue$yellow$yellow$red$shadow"
+echo -e "   $shadow$red$yellow$yellow$blue$blue$blue$green$green$green$blue$blue$blue$yellow$yellow$red$shadow"
+echo -e "    $shadow$red$yellow$blue$blue$blue$green$green$blue$blue$blue$yellow$yellow$red$red$shadow"
+echo -e "        $shadow$red$yellow$blue$blue$blue$blue$blue$blue$blue$yellow$yellow$red$shadow"
+echo -e "           $shadow$red$yellow$yellow$yellow$yellow$yellow$yellow$yellow$red$shadow"
+echo -e "               $shadow$red$red$red$red$red$red$red$red$red$shadow"
+echo -e "\n"
+
+# Message in the Center
+echo -e "\e[1;36m              ✨ TWO EYES, ONE VISION ✨\e[0m"
+echo -e "\e[1;32m            🌟 SEE THE WORLD IN 3D 🌟\e[0m"
+echo -e "\n"
